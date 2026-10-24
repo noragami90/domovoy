@@ -7,32 +7,37 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icon-180.png">
-<meta name="theme-color" content="#2f6f5e">
+<meta name="theme-color" content="#0b0d11">
 <meta name="apple-mobile-web-app-title" content="Домовой">
 <meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter+Tight:wght@300;400;500;600;700&display=swap">
 <link rel="stylesheet" href="/panel.css">
 <script type="module" src="/panel.js"></script>
 </head>
 <body>
 <header class="top">
-  <div class="brand"><img src="/favicon.svg" alt="" width="26" height="26"><span>Домовой</span></div>
-  <nav id="tabs" class="tabs" aria-label="Разделы" hidden>
-    <a href="#" data-view="overview" class="tab">Обзор</a>
-    <a href="#timeline" data-view="timeline" class="tab">Лента</a>
-    <a href="#editor" data-view="editor" class="tab">Редактор</a>
-    <a href="#notifications" data-view="notifications" class="tab">Уведомления<span id="ack-count" class="tab-count" hidden></span></a>
-    <a href="#system" data-view="system" class="tab">Система</a>
-  </nav>
+  <div class="brand"><img src="/favicon.svg" alt="" width="28" height="28"><span>Домовой</span></div>
+  <div class="top-clock"><span id="top-time"></span><span id="top-date"></span></div>
   <div class="badges">
     <span id="sim-badge" class="badge sim" hidden>Симулятор</span>
     <span id="link" class="badge link" hidden><span class="dot"></span><span id="link-text"></span></span>
     <button id="logout" class="badge logout" hidden>Выйти</button>
   </div>
 </header>
+<nav id="tabs" class="tabs" aria-label="Разделы" hidden>
+    <a href="#" data-view="overview" class="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span class="tab-label">Дом</span></a>
+    <a href="#timeline" data-view="timeline" class="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"/></svg><span class="tab-label">Лента</span></a>
+    <a href="#editor" data-view="editor" class="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></svg><span class="tab-label">Редактор</span></a>
+    <a href="#notifications" data-view="notifications" class="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0"/></svg><span class="tab-label">Уведомления</span><span id="ack-count" class="tab-count" hidden></span></a>
+    <a href="#system" data-view="system" class="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM19 12l2-1-1-3-2 .3-1.4-1.4L17 5l-3-1-1 2h-2L10 4 7 5l.3 2L6 8.4 4 8l-1 3 2 1v0l-2 1 1 3 2-.3 1.4 1.4L7 19l3 1 1-2h2l1 2 3-1-.3-2 1.4-1.4 2 .3 1-3z"/></svg><span class="tab-label">Система</span></a>
+</nav>
 
 <section id="login" class="login" hidden>
   <form id="login-form" class="card login-card">
-    <h1>Вход</h1>
+    <div class="login-clock" id="login-time"></div>
+    <h1>Домовой</h1>
     <label for="password">Пароль панели</label>
     <input id="password" type="password" autocomplete="current-password" required>
     <p id="login-error" class="field-error" hidden></p>
@@ -42,10 +47,18 @@
 </section>
 
 <main id="app" hidden>
-  <div id="view-overview">
+  <div id="view-overview" class="overview">
     <div id="acks" class="acks" hidden></div>
-    <div id="remote" class="remote"></div>
+    <section class="hero">
+      <div class="hero-clock"><div id="hero-time" class="hero-time"></div><div id="hero-date" class="hero-date"></div></div>
+      <div id="remote" class="remote"></div>
+    </section>
     <div id="home" class="home"></div>
+    <section class="dev-section">
+      <h2>Устройства <span id="device-count" class="muted"></span></h2>
+      <p id="sim-hint" class="hint" hidden>Кнопки «Симулятор» меняют показания датчиков, как будто это сделал настоящий. Они — под «⋯» на плитке.</p>
+      <div id="devices" class="devices"></div>
+    </section>
     <div class="layout">
       <section class="col">
         <h2>Правила</h2>
@@ -54,9 +67,6 @@
       <section class="col">
         <h2>Переменные</h2>
         <div id="vars" class="stack"></div>
-        <h2>Устройства <span id="device-count" class="muted"></span></h2>
-        <p id="sim-hint" class="hint" hidden>Кнопки «Симулятор» меняют показания датчиков, как будто это сделал настоящий.</p>
-        <div id="devices" class="stack"></div>
       </section>
     </div>
   </div>

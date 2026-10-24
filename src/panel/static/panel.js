@@ -336,14 +336,80 @@ function renderDevices() {
   box.replaceChildren(...groups.flatMap(([room, list]) => [room ? h('h3', { class: 'room-head' }, room) : null, ...list.map((d) => deviceCard(d))]).filter(Boolean));
 }
 
-function deviceCard(d) {
-  return h('article', { class: 'card' },
-    h('div', { class: 'dev-head' }, h('a', { class: 'dev-name dev-link', href: `#device/${encodeURIComponent(d.id)}` }, d.name),
-      d.online ? h('span', { class: 'dev-meta' }, [d.model, d.category].filter(Boolean).join(' · ')) : h('span', { class: 'offline' }, 'не в сети')),
-    h('div', { class: 'attrs' }, d.attrs.map((a) => h('span', { class: 'chip' }, `${attrLabel(a.key)} `, h('b', {}, a.text)))),
-    ...controlsFor(d),
-    chartPanel(d));
+// NSPanel-style tile: icon, name, big state. Tap toggles the first switch; «⋯» opens values, control, simulator, chart.
+const openTiles = new Set();
+const SVG = {
+  light: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z',
+  temp: 'M10 14.5V5a2 2 0 1 1 4 0v9.5a4 4 0 1 1-4 0z',
+  door: 'M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17M4 21h16M14 12h.01',
+  drop: 'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z',
+  motion: 'M13 4a1.5 1.5 0 1 0 0 .01M9 21l2-6 3 3v3M7 12l3-4 4 2 3 3M10 8l-1 5',
+  plug: 'M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
+};
+const svg = (name) => {
+  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
+  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  p.setAttribute('d', SVG[name]); s.append(p); return s;
+};
+function tileKind(d) {
+  const keys = d.attrs.map((a) => a.key);
+  if (keys.includes('leak')) return 'drop';
+  if (keys.includes('open')) return 'door';
+  if (keys.includes('motion') || keys.includes('detected')) return 'motion';
+  if (keys.includes('temperature') || keys.includes('humidity')) return 'temp';
+  if (d.attrs.some((a) => a.control === 'switch')) return /розетк|plug/i.test(`${d.name} ${d.category ?? ''}`) ? 'plug' : 'light';
+  return 'plug';
 }
+
+function deviceCard(d) {
+  const sw = d.attrs.filter((a) => a.control === 'switch');
+  const temp = d.attrs.find((a) => a.key === 'temperature');
+  const hum = d.attrs.find((a) => a.key === 'humidity');
+  const open = d.attrs.find((a) => a.key === 'open');
+  const alarm = d.attrs.some((a) => ['leak'].includes(a.key) && a.value === true);
+  const on = sw.length ? sw.some((a) => a.value === 'on') : open?.value === true;
+  const expanded = openTiles.has(d.id);
+  const big = temp ? h('div', { class: 'ns-big' }, temp.text.replace(/\s*°C$/, '°'), hum ? h('small', {}, hum.text) : null) : null;
+  const stateText = !d.online ? 'не в сети'
+    : sw.length ? sw.map((a) => (sw.length > 1 ? `${attrLabel(a.key)}: ${a.text}` : a.text)).join(' · ')
+      : open ? open.text : temp ? (hum ? '' : attrLabel('temperature')) : d.attrs.map((a) => a.text).join(' · ');
+  const more = h('button', { class: 'ns-more', 'aria-label': expanded ? 'Свернуть' : 'Подробнее', 'aria-expanded': String(expanded), onclick: () => {
+    if (openTiles.has(d.id)) openTiles.delete(d.id); else openTiles.add(d.id);
+    lastJson.devices = null; renderDevices();
+  } }, svg('more'));
+  const toggle = sw.length && d.online ? act((e) => {
+    if (e.target.closest('a,button,select,input')) return;
+    const first = sw[0];
+    return control(d, first.key, sw.some((a) => a.value === 'on') ? 'off' : 'on');
+  }) : undefined;
+  return h('article', { class: `ns-tile${on ? ' on' : ''}${alarm ? ' alarm' : ''}${d.online ? '' : ' offline'}${sw.length ? ' tap' : ''}${expanded ? ' open' : ''}`,
+    role: sw.length ? 'button' : null, 'aria-pressed': sw.length ? String(on) : null, onclick: toggle },
+    h('div', { class: 'ns-top' }, h('span', { class: 'ns-icon' }, svg(tileKind(d))), more),
+    big,
+    h('div', { class: 'ns-foot' },
+      h('a', { class: 'ns-name dev-link', href: `#device/${encodeURIComponent(d.id)}` }, d.name),
+      stateText ? h('div', { class: d.online ? 'ns-state' : 'ns-state offline' }, stateText) : null),
+    expanded ? h('div', { class: 'ns-details' },
+      h('div', { class: 'dev-meta' }, [d.model, d.category].filter(Boolean).join(' · ')),
+      h('div', { class: 'attrs' }, d.attrs.map((a) => h('span', { class: 'chip' }, `${attrLabel(a.key)} `, h('b', {}, a.text)))),
+      ...controlsFor(d),
+      chartPanel(d)) : null);
+}
+
+// Clock on the top bar and the home screen, like on the wall panel.
+function tickClock() {
+  const now = new Date();
+  const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  const date = now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+  for (const [id, text] of [['top-time', time], ['hero-time', time], ['login-time', time], ['top-date', date], ['hero-date', date]]) {
+    const el = document.getElementById(id);
+    if (el && el.textContent !== text) el.textContent = text;
+  }
+}
+tickClock();
+setInterval(tickClock, 5000);
 
 // ── refresh loop ───────────────────────────────────────────────────────────
 
