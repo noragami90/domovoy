@@ -1,0 +1,28 @@
+{
+  "name": "domovoy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local automation engine next to eWeLink CUBE: rules CUBE can't do, explained in plain words",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env src/main.ts",
+    "cube": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env src/cli/cube.ts",
+    "sim": "node --disable-warning=ExperimentalWarning sim/server.ts",
+    "sim:set": "node --disable-warning=ExperimentalWarning sim/cli.ts",
+    "test": "node --disable-warning=ExperimentalWarning --test \"tests/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "why": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env src/cli/why.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.1.0",
+    "yaml": "2.9.1",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "typescript": "5.9.3"
+  }
+}

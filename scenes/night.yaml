@@ -1,0 +1,9 @@
+id: night
+name: Ночь
+description: Режим «ночь» и выключить всё; предупредить, если лоджия открыта.
+do:
+  - set_var: { var: mode, to: night }
+  - all_off: {}
+  - notify: "Лоджия открыта на ночь."
+    if:
+      - { device: Дверь лоджии, attr: open, is: true }

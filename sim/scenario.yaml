@@ -1,0 +1,64 @@
+# Устройства симулятора — похожи на те, что будут в квартире.
+devices:
+  - serial_number: sim-bath-sensor
+    name: Санузел
+    display_category: temperatureAndHumiditySensor
+    manufacturer: SONOFF
+    model: SNZB-02WD
+    online: true
+    capabilities: [{ capability: temperature }, { capability: humidity }, { capability: battery }]
+    state:
+      temperature: { temperature: 24.1 }
+      humidity: { humidity: 48 }
+      battery: { battery: 90 }
+
+  - serial_number: sim-fan
+    name: Вытяжка
+    display_category: switch
+    manufacturer: SONOFF
+    model: MINIR4
+    online: true
+    capabilities: [{ capability: power }]
+    state:
+      power: { powerState: "off" }
+
+  - serial_number: sim-loggia-door
+    name: Дверь лоджии
+    display_category: contactSensor
+    manufacturer: SONOFF
+    model: SNZB-04P
+    online: true
+    capabilities: [{ capability: contact }, { capability: battery }]
+    state:
+      contact: { contact: true }
+      battery: { battery: 95 }
+
+  - serial_number: sim-panel-living
+    name: Гостиная панель
+    display_category: temperatureSensor
+    manufacturer: SONOFF
+    model: NSPanel Pro
+    online: true
+    capabilities: [{ capability: temperature }]
+    state:
+      temperature: { temperature: 23.5 }
+
+  - serial_number: sim-hall-switch
+    name: Прихожая выключатель
+    display_category: switch
+    manufacturer: SONOFF
+    model: ZBM5-1C-86W
+    online: true
+    capabilities: [{ capability: toggle, name: "1" }]
+    state:
+      toggle: { "1": { toggleState: "off" } }
+
+  - serial_number: sim-garland
+    name: Гирлянда лоджии
+    display_category: switch
+    manufacturer: SONOFF
+    model: ZBMINIR2
+    online: true
+    capabilities: [{ capability: power }]
+    state:
+      power: { powerState: "off" }

@@ -1,0 +1,53 @@
+# Скопируй в config.yaml и поправь. Секреты — в .env: CUBE_TOKEN, TELEGRAM_BOT_TOKEN.
+timezone: Asia/Tbilisi
+location: { lat: 41.7151, lon: 44.8271 }   # для заката и восхода
+
+cube:
+  url: http://192.168.88.20   # адрес Raspberry Pi с CUBE (для симулятора: http://127.0.0.1:8765)
+
+telegram:
+  chats: []                    # id чатов: кому слать уведомления и кто может командовать. Узнать: напиши боту /start
+
+rules_dir: ./rules
+scenes_dir: ./scenes
+db: ./data/domovoy.db
+
+# Переменные: то, чего нет в устройствах. Меняются командой /set в Telegram или действием set_var.
+vars:
+  mode:
+    label: Режим
+    initial: home
+    options:
+      - { value: home, label: Дома }
+      - { value: away, label: Ушёл }
+      - { value: night, label: Ночь }
+      - { value: vacation, label: Отпуск }
+  ac_running:
+    label: Кондиционер работает
+    initial: false
+
+# Кто дома: у каждого — переменная home_<id>, общая — anyone_home.
+# telegram — chat id для /home и /away; с телефона: POST /api/presence/<id> {"home": true}
+# с заголовком Authorization: Bearer <PRESENCE_TOKEN из .env>.
+people: {}
+#  anton: { name: Антон, telegram: 123456789 }
+
+# Устройства, которыми движку управлять запрещено.
+protected: []
+
+# Необязательные уточнения по датчикам (имя как в CUBE).
+devices:
+  "Дверь лоджии":
+    contact_true_means: closed
+
+# Веб-панель: правила, устройства, «почему». Без пароля — только для домашней сети.
+panel:
+  port: 8080
+
+# Черновики правил словами («Словами» в редакторе панели) — через Claude API.
+# Ключ: строка ANTHROPIC_API_KEY=... в файле .env рядом с этим файлом. Без ключа всё остальное работает.
+# Ключ без рабочего пространства (workspace) требует ещё ANTHROPIC_WORKSPACE_ID=... там же.
+# В Claude уходят: твоя просьба, названия устройств и их текущие значения, переменные, сцены.
+# ai:
+#   model: claude-opus-5-5
+#   effort: medium        # low | medium | high

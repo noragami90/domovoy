@@ -1,0 +1,8 @@
+id: home
+name: Я дома
+description: Режим «дома»; если уже темно — свет в прихожей.
+do:
+  - set_var: { var: mode, to: home }
+  - set: { device: Прихожая выключатель, attr: toggle.1, to: "on" }
+    if:
+      - time: { between: [sunset, sunrise] }

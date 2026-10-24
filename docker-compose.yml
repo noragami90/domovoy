@@ -1,0 +1,24 @@
+# Everything on a Mac: CUBE simulator + engine.
+#   docker compose up -d --build      start
+#   http://localhost:8089             web panel
+#   docker compose logs -f domovoy    watch the engine
+#   npm run sim:set -- "Дверь лоджии" open true   change a sensor (simulator is on localhost:8765)
+#   docker compose down               stop
+# To talk to the real CUBE instead, set CUBE_URL and CUBE_TOKEN for the domovoy service and drop "sim".
+# Secrets (TELEGRAM_BOT_TOKEN, TELEGRAM_CHATS, ANTHROPIC_API_KEY, PANEL_PASSWORD, PRESENCE_TOKEN) go into
+# data/docker/.env — the engine reads it at start, the same file as /data/.env on the Pi. Do not list them
+# here as ${VAR:-}: an empty variable from compose would win over the value in that file.
+services:
+  sim:
+    build: { context: ., target: sim }
+    ports: ["8765:8765"]
+
+  domovoy:
+    build: { context: ., target: app }
+    depends_on: [sim]
+    ports: ["127.0.0.1:8089:8080"]   # веб-панель: http://localhost:8089 (8080 на Маке занят)
+    volumes: ["./data/docker:/data"]
+    environment:
+      CUBE_URL: http://sim:8765
+      CUBE_TOKEN: sim-token-0000
+    restart: unless-stopped

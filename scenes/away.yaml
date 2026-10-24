@@ -1,0 +1,12 @@
+id: away
+name: Ушёл
+description: Режим «ушёл», выключить всё, предупредить про открытую лоджию и кондиционер.
+do:
+  - set_var: { var: mode, to: away }
+  - all_off: {}
+  - notify: "Дверь лоджии осталась открытой."
+    if:
+      - { device: Дверь лоджии, attr: open, is: true }
+  - notify: "Кондиционер, похоже, работает — выключи его пультом."
+    if:
+      - { var: ac_running, is: true }

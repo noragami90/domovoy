@@ -1,0 +1,14 @@
+id: heat-leak
+name: Утечка тепла
+description: Дверь лоджии открыта дольше 5 минут, а кондиционер работает — напомнить.
+when:
+  all:
+    - device: Дверь лоджии
+      attr: open
+      is: true
+      for: 5m
+    - var: ac_running
+      is: true
+then:
+  - notify: "Закрой лоджию: кондиционер работает, а дверь открыта уже 5 минут."
+cooldown: 15m

@@ -1,0 +1,18 @@
+id: bath-fan
+name: Вытяжка по влажности
+description: Влажность в санузле на 15 пунктов выше обычной — включить вытяжку; когда спала — выключить через 10 минут.
+when:
+  all:
+    - device: Санузел
+      attr: humidity
+      above_baseline: 15     # 15 пунктов над обычным уровнем; "15%" — на 15% выше
+      baseline:
+        window: 24h          # обычный уровень — медиана за сутки
+        exclude_recent: 30m  # без последних 30 минут, чтобы душ не сдвигал норму
+        min_samples: 10
+then:
+  - set: { device: Вытяжка, attr: power, to: "on" }
+otherwise:
+  after: 10m
+  do:
+    - set: { device: Вытяжка, attr: power, to: "off" }

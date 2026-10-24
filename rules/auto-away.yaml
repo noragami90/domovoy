@@ -1,0 +1,13 @@
+id: auto-away
+name: Все ушли — сцена «Ушёл»
+description: Если дома никого 5 минут — запустить сцену «Ушёл». Включи, когда добавишь людей в config.yaml (people).
+enabled: false
+when:
+  all:
+    - var: anyone_home
+      is: false
+      for: 5m
+    - var: mode
+      is: home
+then:
+  - scene: away

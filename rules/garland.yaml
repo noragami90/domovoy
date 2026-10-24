@@ -1,0 +1,13 @@
+id: garland
+name: Гирлянда по закату
+description: Гирлянда лоджии горит с заката до 23:30, если дома не режим «ушёл».
+when:
+  all:
+    - time: { between: [sunset, "23:30"] }
+    - var: mode
+      is: home
+then:
+  - set: { device: Гирлянда лоджии, attr: power, to: "on" }
+otherwise:
+  do:
+    - set: { device: Гирлянда лоджии, attr: power, to: "off" }
