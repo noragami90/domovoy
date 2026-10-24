@@ -75,7 +75,12 @@ test('page: strict CSP, no inline code, all modules served', async () => {
     assert.match(res.headers.get('content-security-policy') ?? '', /script-src 'self'/);
     const html = await res.text();
     assert.doesNotMatch(html, /<script(?![^>]*\ssrc=)[^>]*>|\sstyle=|\son[a-z]+=/);
-    for (const f of ['/panel.js', '/dom.js', '/chart.js', '/timeline.js', '/editor.js', '/form.js', '/diagram.js', '/whatif.js', '/ai.js', '/notifications.js', '/device.js', '/system.js', '/tablet.js', '/manifest.webmanifest', '/icon-192.png', '/apple-touch-icon.png', '/panel.css', '/favicon.svg']) assert.equal((await call(f)).status, 200, f);
+    assert.doesNotMatch(html, /(?:href|src)="https?:/, 'nothing from other sites: fonts and styles come from the panel itself');
+    const fonts = await call('/fonts/inter-tight-cyrillic.woff2');
+    assert.deepEqual([fonts.status, fonts.headers.get('content-type')], [200, 'font/woff2']);
+    assert.match(fonts.headers.get('cache-control') ?? '', /max-age/);
+    assert.match(await (await call('/fonts.css')).text(), /url\(\/fonts\/inter-tight-latin\.woff2\)/);
+    for (const f of ['/panel.js', '/dom.js', '/chart.js', '/timeline.js', '/editor.js', '/form.js', '/diagram.js', '/whatif.js', '/ai.js', '/notifications.js', '/device.js', '/system.js', '/tablet.js', '/tiles.js', '/icons.js', '/manifest.webmanifest', '/icon-192.png', '/apple-touch-icon.png', '/panel.css', '/theme.css', '/fonts/OFL-inter-tight.txt', '/favicon.svg']) assert.equal((await call(f)).status, 200, f);
     assert.equal((await call('/nope')).status, 404);
   } finally { await panel.close(); }
 });

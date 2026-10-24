@@ -117,6 +117,6 @@ test('toYaml orders keys and every template builds a valid card for the simulato
     if (t.kind === 'scene') parseScene(card, t.id); else parseRule(card, t.id);
   }
   assert.deepEqual(paramOptions({ key: 'x', label: 'x', type: 'switch' }, devices).map((o) => o.value),
-    ['Вытяжка|power', 'Прихожая выключатель|toggle.1', 'Гирлянда лоджии|power']);
+    ['Вытяжка|power', 'Прихожая выключатель|toggle.1', 'Прихожая выключатель|toggle.2', 'Гирлянда лоджии|power']);
   assert.throws(() => buildFromTemplate('humidity-fan', { fan: 'Вытяжка|power' }, devices), /не заполнено: Датчик влажности/);
 });

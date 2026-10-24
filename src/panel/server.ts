@@ -24,7 +24,7 @@
 //   POST /api/sim/state, /api/sim/seed — only when CUBE is the simulator
 // POSTs must be JSON from this same page (Origin), so another site cannot press buttons.
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Link } from '../app.ts';
@@ -80,6 +80,8 @@ export interface Panel { url: string; changed(): void; close(): Promise<void> }
 const STATIC: Record<string, [file: string, type: string]> = {
   '/': ['index.html', 'text/html; charset=utf-8'],
   '/panel.css': ['panel.css', 'text/css; charset=utf-8'],
+  '/theme.css': ['theme.css', 'text/css; charset=utf-8'],
+  '/fonts.css': ['fonts.css', 'text/css; charset=utf-8'],
   '/panel.js': ['panel.js', 'text/javascript; charset=utf-8'],
   '/chart.js': ['chart.js', 'text/javascript; charset=utf-8'],
   '/timeline.js': ['timeline.js', 'text/javascript; charset=utf-8'],
@@ -93,6 +95,8 @@ const STATIC: Record<string, [file: string, type: string]> = {
   '/device.js': ['device.js', 'text/javascript; charset=utf-8'],
   '/system.js': ['system.js', 'text/javascript; charset=utf-8'],
   '/tablet.js': ['tablet.js', 'text/javascript; charset=utf-8'],
+  '/tiles.js': ['tiles.js', 'text/javascript; charset=utf-8'],
+  '/icons.js': ['icons.js', 'text/javascript; charset=utf-8'],
   '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json'],
   '/icon-180.png': ['icon-180.png', 'image/png'],
   '/apple-touch-icon.png': ['icon-180.png', 'image/png'], // iOS asks for it at the root by itself
@@ -114,8 +118,13 @@ function bearerOk(req: IncomingMessage, token: string | undefined): boolean {
 }
 
 export function startPanel(o: PanelOptions): Promise<Panel> {
-  const files = Object.fromEntries(Object.entries(STATIC).map(([path, [file, type]]) =>
+  const files: Record<string, { body: Buffer; type: string; cache?: string }> = Object.fromEntries(Object.entries(STATIC).map(([path, [file, type]]) =>
     [path, { body: readFileSync(new URL(`./static/${file}`, import.meta.url)), type }]));
+  // Fonts live in the panel itself (no Google): every file in static/fonts, cached by the browser for a month.
+  for (const file of readdirSync(new URL('./static/fonts/', import.meta.url))) {
+    const type = file.endsWith('.woff2') ? 'font/woff2' : file.endsWith('.txt') ? 'text/plain; charset=utf-8' : null;
+    if (type) files[`/fonts/${file}`] = { body: readFileSync(new URL(`./static/fonts/${file}`, import.meta.url)), type, cache: 'public, max-age=2592000' };
+  }
   const streams = new Set<ServerResponse>();
   const now = o.now ?? Date.now;
   const fetchImpl = o.fetchImpl ?? fetch;
@@ -361,7 +370,7 @@ export function startPanel(o: PanelOptions): Promise<Panel> {
     const token = parseCookies(req.headers.cookie).get(COOKIE);
     try {
       if (req.method === 'GET' && files[path]) {
-        res.writeHead(200, { 'content-type': files[path].type, 'cache-control': 'no-cache', ...SECURITY });
+        res.writeHead(200, { 'content-type': files[path].type, 'cache-control': files[path].cache ?? 'no-cache', ...SECURITY });
         return void res.end(files[path].body);
       }
       if (!path.startsWith('/api/')) throw new HttpError(404, 'не найдено');

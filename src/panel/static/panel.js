@@ -1,26 +1,24 @@
-// Web panel: login, the house at a glance, rules (switch, pause, «Почему?»), variables,
-// devices (control, simulator, charts) and the event feed. Refreshes on every "change" from /api/events.
-import { renderChart } from './chart.js';
-import { AuthError, ago, api, attrLabel, clock, h } from './dom.js';
+// Web panel: login, the home screen (clock, how the house is, mode, scenes, devices by room), rules
+// (switch, pause, «Почему?»), variables and the other tabs. Refreshes on every "change" from /api/events.
+import { AuthError, ago, api, clock, h } from './dom.js';
 import { createEditor } from './editor.js';
+import { icon, modeIcon, sceneIcon } from './icons.js';
 import { createNotifications } from './notifications.js';
 import { createDevicePage } from './device.js';
 import { createSystem } from './system.js';
 import { createTablet } from './tablet.js';
+import { deviceTile } from './tiles.js';
 import { createTimeline } from './timeline.js';
 
 const $ = (id) => document.getElementById(id);
 const STATUS = { active: 'Активно', waiting: 'Ждёт', idle: 'Не выполняется', unknown: 'Не хватает данных', paused: 'На паузе', off: 'Выключено' };
 const MARKS = { ok: '✓', waiting: '⏳', fail: '✗', unknown: '?' };
 const PAUSES = [[30, '30 мин'], [60, '1 час'], [180, '3 часа'], [480, '8 часов'], [1440, 'сутки']];
-const CHART_ATTRS = ['humidity', 'temperature', 'power_w', 'battery'];
-const RANGES = [['1h', '1 ч', 3_600_000], ['24h', '24 ч', 86_400_000], ['7d', '7 д', 7 * 86_400_000]];
 
 let state = null;
 let events = null;
 const openWhy = new Map();     // rule id → explanation ('' while loading)
 const ruleCards = new Map();   // rule id → elements, built once and updated in place
-const openCharts = new Map();  // device id → { attr, range }
 const lastJson = {};
 
 let errorTimer;
@@ -68,7 +66,7 @@ const timeline = createTimeline($('view-timeline'), {
 });
 const editor = createEditor($('view-editor'), { onError: fail, toast: (msg, tone) => toast(msg, tone) });
 const notifications = createNotifications($('view-notifications'), { onError: fail, toast: (msg, tone) => toast(msg, tone) });
-const devicePage = createDevicePage($('view-device'), { onError: fail, toast: (msg, tone) => toast(msg, tone) });
+const devicePage = createDevicePage($('view-device'), { onError: fail, toast: (msg, tone) => toast(msg, tone), simulator: () => state?.simulator });
 const system = createSystem($('view-system'), { onError: fail, toast: (msg, tone) => toast(msg, tone) });
 const tablet = createTablet($('view-tablet'), { onError: fail, toast: (msg, tone) => toast(msg, tone) });
 const VIEWS = ['overview', 'timeline', 'editor', 'notifications', 'device', 'system', 'tablet'];
@@ -83,6 +81,7 @@ function applyView() {
   const v = currentView();
   for (const name of VIEWS) $(`view-${name}`).hidden = v !== name;
   for (const a of document.querySelectorAll('.tab')) a.setAttribute('aria-current', a.dataset.view === v ? 'page' : 'false');
+  document.body.dataset.view = v; // the status bar shows the time everywhere but on the home screen, which has the big clock
   if (v !== 'overview') window.scrollTo(0, 0);
   if (v === 'timeline') void timeline.refresh();
   if (v === 'editor') void editor.show();
@@ -106,25 +105,36 @@ async function runScene(scene) {
   toast(failed.length ? `«${scene.name}»: ${failed.join('; ')}` : `«${scene.name}»: ${done.join('; ') || 'нечего делать'}`, failed.length ? 'error' : 'notice');
 }
 
+// Quick cards like the ones along the bottom of the wall panel: an icon in a circle and a word.
+const quick = (cls, ic, label, props, sub) => h('button', { class: `qa ${cls}`, ...props },
+  h('span', { class: 'qa-icon' }, icon(ic)), h('span', { class: 'qa-label' }, label), sub ? h('span', { class: 'qa-sub' }, sub) : null);
+const block = (title, row) => h('div', { class: 'qa-block' }, h('h3', { class: 'qa-title' }, title), row);
+
 function renderRemote() {
   const mode = state.vars.find((v) => v.name === 'mode' && v.options);
   const blocks = [];
   if (mode) {
-    blocks.push(h('div', { class: 'remote-block' }, h('div', { class: 'remote-title' }, mode.label),
-      h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': mode.label }, mode.options.map((o) =>
-        h('button', { class: `seg${o.value === mode.value ? ' on' : ''}`, role: 'radio', 'aria-checked': String(o.value === mode.value),
-          onclick: act(() => api('/api/vars/mode', { value: o.value })) }, o.label)))));
+    blocks.push(block(mode.label, h('div', { class: 'qa-row', role: 'radiogroup', 'aria-label': mode.label }, mode.options.map((o) => {
+      const on = o.value === mode.value;
+      return quick(on ? 'on' : '', modeIcon(o), o.label, { role: 'radio', 'aria-checked': String(on), onclick: act(() => api('/api/vars/mode', { value: o.value })) });
+    }))));
   }
   if (state.scenes.length) {
-    blocks.push(h('div', { class: 'remote-block' }, h('div', { class: 'remote-title' }, 'Сцены'),
-      h('div', { class: 'scene-row' }, state.scenes.map((x) =>
-        h('button', { class: 'btn scene', title: x.description ?? '', onclick: act(() => runScene(x)) }, x.name)))));
+    blocks.push(block('Сцены', h('div', { class: 'qa-row' }, state.scenes.map((x) => quick('scene', sceneIcon(x), x.name, {
+      title: x.description ?? '',
+      onclick: act(async (e) => {
+        const card = e.currentTarget;
+        card.classList.add('ran'); // a short blue flash: the scene was sent
+        setTimeout(() => card.classList.remove('ran'), 700);
+        await runScene(x);
+      }),
+    })))));
   }
   if (state.home.people.length) {
-    blocks.push(h('div', { class: 'remote-block' }, h('div', { class: 'remote-title' }, 'Кто дома'),
-      h('div', { class: 'scene-row' }, state.home.people.map((p) =>
-        h('button', { class: `btn person${p.home ? ' on' : ''}`, 'aria-pressed': String(p.home),
-          onclick: act(() => api(`/api/presence/${encodeURIComponent(p.id)}`, { home: !p.home })) }, `${p.name}: ${p.home ? 'дома' : 'нет'}`)))));
+    blocks.push(block('Кто дома', h('div', { class: 'qa-row' }, state.home.people.map((p) => quick(`person${p.home ? ' on' : ''}`, 'person', p.name, {
+      'aria-pressed': String(p.home), 'aria-label': `${p.name}: ${p.home ? 'дома' : 'нет дома'}`,
+      onclick: act(() => api(`/api/presence/${encodeURIComponent(p.id)}`, { home: !p.home })),
+    }, p.home ? 'дома' : 'нет дома')))));
   }
   $('remote').hidden = !blocks.length;
   $('remote').replaceChildren(...blocks);
@@ -132,32 +142,34 @@ function renderRemote() {
 
 // ── the house at a glance ──────────────────────────────────────────────────
 
-function tile(title, tone, ...body) {
-  return h('div', { class: `tile ${tone}` }, h('div', { class: 'tile-title' }, title), h('div', { class: 'tile-body' }, ...body));
-}
-const rows = (items) => h('ul', { class: 'tile-list' }, items.map((t) => h('li', {}, ...[t].flat())));
+// How the house is, as one row of chips under the clock: calm and short while all is well, amber for
+// what wants a look, red for a leak. The climate sits above the clock, where the panel shows the weather.
+const chip = (tone, ic, ...text) => h('span', { class: `st ${tone}` }, icon(ic), h('span', {}, ...text));
 const ackNow = (id) => act(async () => { await api(`/api/notifications/${id}/ack`, {}); toast('Принято', 'notice'); });
+const short = (t) => t?.replace(/\s*°C$/, '°');
 
 function renderHome() {
   const m = state.home;
   const r = m.rules;
   const ruleText = [[r.active, 'активно'], [r.waiting, 'ждёт'], [r.paused, 'на паузе'], [r.off, 'выключено'], [r.unknown, 'без данных']]
-    .filter(([n]) => n).map(([n, t]) => `${n} ${t}`).join(' · ') || 'все ждут своего часа';
+    .filter(([n]) => n).map(([n, t]) => `${n} ${t}`).join(', ');
   const offline = [...m.offline, ...(state.link.connected ? [] : ['CUBE'])];
-  const link = [
-    ...offline.map((d) => [deviceLink(d), ' — нет связи']),
-    ...m.silent.map((s) => [deviceLink(s.device), ` — молчит: ${s.text}`]),
+  const chips = [
+    ...m.leaks.map((d) => chip('alert', 'drop', 'Протечка: ', deviceLink(d))),
+    ...m.open.map((o) => chip('warn', 'door', deviceLink(o.device), ` открыта${o.since ? ` ${ago(o.since)}` : ''}`)),
+    ...offline.map((d) => chip('warn', 'signal', deviceLink(d), ': нет связи')),
+    ...m.silent.map((s) => chip('warn', 'signal', deviceLink(s.device), ` молчит: ${s.text}`)),
+    ...m.lowBattery.map((b) => chip('warn', 'battery', deviceLink(b.device), `: батарейка ${b.text}`)),
+    m.leaks.length ? null : chip('ok', 'drop', 'Сухо'),
+    m.open.length ? null : chip('ok', 'door', 'Всё закрыто'),
+    offline.length || m.silent.length ? null : chip('ok', 'signal', 'Всё на связи'),
+    m.lowBattery.length ? null : chip('ok', 'battery', 'Батарейки в порядке'),
+    ruleText ? chip('', 'rules', `Правила: ${ruleText}`) : null,
+    m.power ? chip('', 'bolt', m.power) : null,
   ];
-  $('home').replaceChildren(...[
-    m.leaks.length ? tile('Протечки', 'alert', rows(m.leaks.map((d) => `${d} — ПРОТЕЧКА`))) : tile('Протечки', 'ok', 'Сухо'),
-    m.open.length ? tile('Двери и окна', 'warn', rows(m.open.map((o) => `${o.device} — открыта${o.since ? ` ${ago(o.since)}` : ''}`))) : tile('Двери и окна', 'ok', 'Всё закрыто'),
-    tile('Климат', '', m.climate.length ? rows(m.climate.map((c) => `${c.device}: ${[c.temperature, c.humidity].filter(Boolean).join(' · ')}`)) : 'Нет датчиков'),
-    m.lowBattery.length ? tile('Батарейки', 'warn', rows(m.lowBattery.map((b) => [deviceLink(b.device), ` — ${b.text}`]))) : tile('Батарейки', 'ok', 'В порядке'),
-    link.length ? tile('Связь', 'warn', rows(link)) : tile('Связь', 'ok', 'Всё на связи'),
-    m.people.length ? tile('Кто дома', '', m.people.some((p) => p.home) ? m.people.filter((p) => p.home).map((p) => p.name).join(', ') : 'Никого') : null,
-    tile('Правила', '', ruleText),
-    m.power ? tile('Мощность', '', m.power) : null,
-  ].filter(Boolean)); // replaceChildren would print a null as text
+  $('home').replaceChildren(...chips.filter(Boolean)); // replaceChildren would print a null as text
+  $('hero-climate').replaceChildren(...m.climate.map((c, i) => h('span', { class: 'hc' }, i ? null : icon('temp'),
+    h('span', { class: 'hc-val' }, [short(c.temperature), c.humidity].filter(Boolean).join(' ')), h('span', { class: 'hc-where' }, c.device))));
 }
 
 // Urgent notifications waiting for «Принял»: their own block, rebuilt only when they change,
@@ -265,148 +277,48 @@ function renderVars() {
 
 // ── devices ────────────────────────────────────────────────────────────────
 
-const choice = (text, active, onclick) => h('button', { class: `btn${active ? ' on' : ''}`, onclick: act(onclick) }, text);
-const group = (label, ...items) => h('span', { class: 'ctl' }, label ? h('span', { class: 'ctl-label' }, label) : null, ...items);
-const sim = (d, attr, value) => api('/api/sim/state', { device: d.name, attr, value });
 const control = (d, attr, value) => api(`/api/devices/${encodeURIComponent(d.id)}/set`, { attr, value });
+const NO_ROOM = '\u0000none';
 
-function controlsFor(d) {
-  const real = [];
-  const fake = [];
-  for (const { key: k, value: v, text, control: c } of d.attrs) {
-    if (c === 'switch') real.push(group(attrLabel(k), choice('Вкл', v === 'on', () => control(d, k, 'on')), choice('Выкл', v === 'off', () => control(d, k, 'off'))));
-    if (!state.simulator) continue;
-    if (k === 'open') fake.push(group(null, choice('Открыть', v === true, () => sim(d, 'open', true)), choice('Закрыть', v === false, () => sim(d, 'open', false))));
-    else if ((k === 'humidity' || k === 'temperature') && typeof v === 'number') {
-      const step = k === 'humidity' ? 5 : 0.5;
-      const round = (x) => Math.round(x * 10) / 10;
-      fake.push(group(attrLabel(k),
-        h('button', { class: 'btn step', 'aria-label': `${attrLabel(k)}: меньше`, onclick: act(() => sim(d, k, round(v - step))) }, '−'),
-        h('span', { class: 'value' }, text),
-        h('button', { class: 'btn step', 'aria-label': `${attrLabel(k)}: больше`, onclick: act(() => sim(d, k, round(v + step))) }, '+'),
-        h('button', { class: 'btn', title: 'Записать сутки обычных показаний — для обычного уровня и графика', onclick: act(() => api('/api/sim/seed', { device: d.name, attr: k })) }, 'Сутки истории')));
-    } else if (['leak', 'motion', 'detected'].includes(k)) {
-      fake.push(group(attrLabel(k), choice('Да', v === true, () => sim(d, k, true)), choice('Нет', v === false, () => sim(d, k, false))));
-    }
-  }
-  return [
-    real.length ? h('div', { class: 'controls' }, h('span', { class: 'ctl-kind' }, 'Управление'), real) : null,
-    fake.length ? h('div', { class: 'controls sim' }, h('span', { class: 'ctl-kind' }, 'Симулятор'), fake) : null,
-  ];
-}
-
-async function loadChart(d, box) {
-  const o = openCharts.get(d.id);
-  if (!o) return;
-  const range = RANGES.find(([k]) => k === o.range);
-  try {
-    const data = await api(`/api/history?device=${encodeURIComponent(d.id)}&attr=${o.attr}&range=${o.range}`);
-    renderChart(box, data, range[2]);
-  } catch (e) { fail(e); }
-}
-
-function chartPanel(d) {
-  // In CHART_ATTRS order: humidity first — that is what the rules usually watch.
-  const attrs = CHART_ATTRS.filter((k) => d.attrs.some((a) => a.key === k && a.numeric));
-  if (!attrs.length) return null;
-  const o = openCharts.get(d.id);
-  const toggle = h('button', { class: 'btn', 'aria-expanded': String(!!o), onclick: () => {
-    if (openCharts.has(d.id)) openCharts.delete(d.id); else openCharts.set(d.id, { attr: attrs[0], range: '24h' });
-    lastJson.devices = null;
-    renderDevices();
-  } }, o ? 'Скрыть график' : 'График');
-  if (!o) return h('div', { class: 'chart-bar' }, toggle);
-  const box = h('div', { class: 'chart-box' }, 'Загружаю…');
-  const pick = (patch) => { openCharts.set(d.id, { ...o, ...patch }); lastJson.devices = null; renderDevices(); };
-  void loadChart(d, box);
-  return h('div', { class: 'chart-wrap' },
-    h('div', { class: 'chart-bar' }, toggle,
-      attrs.length > 1 ? h('span', { class: 'ctl' }, attrs.map((a) => choice(attrLabel(a), a === o.attr, () => pick({ attr: a })))) : null,
-      h('span', { class: 'ctl' }, RANGES.map(([k, t]) => choice(t, k === o.range, () => pick({ range: k }))))),
-    box);
+// Rooms as tabs over the tiles, like in eWeLink: «Все» shows every room under its heading. The choice is
+// remembered in this browser.
+let roomFilter = (() => { try { return localStorage.getItem('domovoy.room') ?? ''; } catch { return ''; } })();
+function pickRoom(room) {
+  roomFilter = room;
+  try { localStorage.setItem('domovoy.room', room); } catch { /* private mode: just not remembered */ }
+  lastJson.devices = null;
+  renderDevices();
 }
 
 function renderDevices() {
   const box = $('devices');
-  $('device-count').textContent = state.devices.length ? `· ${state.devices.length}` : '';
-  if (!state.devices.length) return box.replaceChildren(h('p', { class: 'empty' }, 'CUBE не вернула ни одного устройства.'));
+  $('device-count').textContent = state.devices.length ? String(state.devices.length) : '';
+  if (!state.devices.length) { $('room-tabs').hidden = true; return box.replaceChildren(h('p', { class: 'empty' }, 'CUBE не вернула ни одного устройства.')); }
   // By room, in the order set in «Система»; without a room — last.
-  const groups = [...state.rooms.map((r) => [r, state.devices.filter((d) => d.room === r)]),
-    [state.rooms.length ? 'Без комнаты' : null, state.devices.filter((d) => !d.room || !state.rooms.includes(d.room))]].filter(([, list]) => list.length);
-  box.replaceChildren(...groups.flatMap(([room, list]) => [room ? h('h3', { class: 'room-head' }, room) : null, ...list.map((d) => deviceCard(d))]).filter(Boolean));
-}
-
-// NSPanel-style tile: icon, name, big state. Tap toggles the first switch; «⋯» opens values, control, simulator, chart.
-const openTiles = new Set();
-const SVG = {
-  light: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z',
-  temp: 'M10 14.5V5a2 2 0 1 1 4 0v9.5a4 4 0 1 1-4 0z',
-  door: 'M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17M4 21h16M14 12h.01',
-  drop: 'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z',
-  motion: 'M13 4a1.5 1.5 0 1 0 0 .01M9 21l2-6 3 3v3M7 12l3-4 4 2 3 3M10 8l-1 5',
-  plug: 'M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4',
-  more: 'M5 12h.01M12 12h.01M19 12h.01',
-};
-const svg = (name) => {
-  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
-  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  p.setAttribute('d', SVG[name]); s.append(p); return s;
-};
-function tileKind(d) {
-  const keys = d.attrs.map((a) => a.key);
-  if (keys.includes('leak')) return 'drop';
-  if (keys.includes('open')) return 'door';
-  if (keys.includes('motion') || keys.includes('detected')) return 'motion';
-  if (keys.includes('temperature') || keys.includes('humidity')) return 'temp';
-  if (d.attrs.some((a) => a.control === 'switch')) return /розетк|plug/i.test(`${d.name} ${d.category ?? ''}`) ? 'plug' : 'light';
-  return 'plug';
-}
-
-function deviceCard(d) {
-  const sw = d.attrs.filter((a) => a.control === 'switch');
-  const temp = d.attrs.find((a) => a.key === 'temperature');
-  const hum = d.attrs.find((a) => a.key === 'humidity');
-  const open = d.attrs.find((a) => a.key === 'open');
-  const alarm = d.attrs.some((a) => ['leak'].includes(a.key) && a.value === true);
-  const on = sw.length ? sw.some((a) => a.value === 'on') : open?.value === true;
-  const expanded = openTiles.has(d.id);
-  const big = temp ? h('div', { class: 'ns-big' }, temp.text.replace(/\s*°C$/, '°'), hum ? h('small', {}, hum.text) : null) : null;
-  const stateText = !d.online ? 'не в сети'
-    : sw.length ? sw.map((a) => (sw.length > 1 ? `${attrLabel(a.key)}: ${a.text}` : a.text)).join(' · ')
-      : open ? open.text : temp ? (hum ? '' : attrLabel('temperature')) : d.attrs.map((a) => a.text).join(' · ');
-  const more = h('button', { class: 'ns-more', 'aria-label': expanded ? 'Свернуть' : 'Подробнее', 'aria-expanded': String(expanded), onclick: () => {
-    if (openTiles.has(d.id)) openTiles.delete(d.id); else openTiles.add(d.id);
-    lastJson.devices = null; renderDevices();
-  } }, svg('more'));
-  const toggle = sw.length && d.online ? act((e) => {
-    if (e.target.closest('a,button,select,input')) return;
-    const first = sw[0];
-    return control(d, first.key, sw.some((a) => a.value === 'on') ? 'off' : 'on');
-  }) : undefined;
-  return h('article', { class: `ns-tile${on ? ' on' : ''}${alarm ? ' alarm' : ''}${d.online ? '' : ' offline'}${sw.length ? ' tap' : ''}${expanded ? ' open' : ''}`,
-    role: sw.length ? 'button' : null, 'aria-pressed': sw.length ? String(on) : null, onclick: toggle },
-    h('div', { class: 'ns-top' }, h('span', { class: 'ns-icon' }, svg(tileKind(d))), more),
-    big,
-    h('div', { class: 'ns-foot' },
-      h('a', { class: 'ns-name dev-link', href: `#device/${encodeURIComponent(d.id)}` }, d.name),
-      stateText ? h('div', { class: d.online ? 'ns-state' : 'ns-state offline' }, stateText) : null),
-    expanded ? h('div', { class: 'ns-details' },
-      h('div', { class: 'dev-meta' }, [d.model, d.category].filter(Boolean).join(' · ')),
-      h('div', { class: 'attrs' }, d.attrs.map((a) => h('span', { class: 'chip' }, `${attrLabel(a.key)} `, h('b', {}, a.text)))),
-      ...controlsFor(d),
-      chartPanel(d)) : null);
+  const loose = state.devices.filter((d) => !d.room || !state.rooms.includes(d.room));
+  const groups = [...state.rooms.map((r) => [r, r, state.devices.filter((d) => d.room === r)]),
+    [NO_ROOM, state.rooms.length ? 'Без комнаты' : null, loose]].filter(([, , list]) => list.length);
+  if (roomFilter && !groups.some(([key]) => key === roomFilter)) roomFilter = '';
+  const tabs = [['', 'Все'], ...groups.filter(([, label]) => label).map(([key, label]) => [key, label])];
+  $('room-tabs').hidden = tabs.length < 3; // one room: nothing to choose
+  $('room-tabs').replaceChildren(...tabs.map(([key, label]) => h('button', { class: 'rt', 'aria-pressed': String(key === roomFilter), onclick: () => pickRoom(key) }, label)));
+  const shown = roomFilter ? groups.filter(([key]) => key === roomFilter) : groups;
+  const tile = (d) => deviceTile(d, { control, act });
+  box.replaceChildren(...shown.flatMap(([, label, list]) => [label && !roomFilter ? h('h3', { class: 'room-head' }, label) : null, ...list.map(tile)]).filter(Boolean));
 }
 
 // Clock on the top bar and the home screen, like on the wall panel.
 function tickClock() {
   const now = new Date();
   const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  const date = now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+  const day = now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+  const date = day.charAt(0).toUpperCase() + day.slice(1); // «Суббота, 24 октября» — the month stays lowercase
   for (const [id, text] of [['top-time', time], ['hero-time', time], ['login-time', time], ['top-date', date], ['hero-date', date]]) {
     const el = document.getElementById(id);
     if (el && el.textContent !== text) el.textContent = text;
   }
+  const hour = now.getHours();
+  document.body.classList.toggle('night', hour >= 21 || hour < 6); // the sun on the home screen turns into the moon
 }
 tickClock();
 setInterval(tickClock, 5000);

@@ -2,18 +2,17 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Домовой</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icon-180.png">
-<meta name="theme-color" content="#0b0d11">
+<meta name="theme-color" content="#1b1c20">
 <meta name="apple-mobile-web-app-title" content="Домовой">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter+Tight:wght@300;400;500;600;700&display=swap">
+<link rel="stylesheet" href="/fonts.css">
 <link rel="stylesheet" href="/panel.css">
+<link rel="stylesheet" href="/theme.css">
 <script type="module" src="/panel.js"></script>
 </head>
 <body>
@@ -50,13 +49,17 @@
   <div id="view-overview" class="overview">
     <div id="acks" class="acks" hidden></div>
     <section class="hero">
-      <div class="hero-clock"><div id="hero-time" class="hero-time"></div><div id="hero-date" class="hero-date"></div></div>
-      <div id="remote" class="remote"></div>
+      <div class="hero-sun" aria-hidden="true"></div>
+      <div id="hero-climate" class="hero-climate"></div>
+      <div id="hero-time" class="hero-time"></div>
+      <div id="hero-date" class="hero-date"></div>
+      <div id="home" class="status" aria-label="Как дела дома"></div>
     </section>
-    <div id="home" class="home"></div>
+    <div id="remote" class="remote"></div>
     <section class="dev-section">
       <h2>Устройства <span id="device-count" class="muted"></span></h2>
-      <p id="sim-hint" class="hint" hidden>Кнопки «Симулятор» меняют показания датчиков, как будто это сделал настоящий. Они — под «⋯» на плитке.</p>
+      <div id="room-tabs" class="room-tabs" aria-label="Комнаты" hidden></div>
+      <p id="sim-hint" class="hint" hidden>Кнопки «Симулятор» — на странице датчика: нажми на его плитку.</p>
       <div id="devices" class="devices"></div>
     </section>
     <div class="layout">

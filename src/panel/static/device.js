@@ -26,9 +26,38 @@ function healthLines(d) {
   return lines;
 }
 
-export function createDevicePage(root, { onError, toast }) {
+// Simulator buttons change a sensor as if the real one did. The simulator knows a device by its id.
+function simCard(d, run) {
+  const choice = (text, on, fn) => h('button', { class: `btn${on ? ' on' : ''}`, onclick: fn }, text);
+  const group = (label, ...items) => h('span', { class: 'ctl' }, label ? h('span', { class: 'ctl-label' }, label) : null, ...items);
+  const set = (attr, value) => run('/api/sim/state', { device: d.id, attr, value });
+  const rows = [];
+  for (const { key: k, value: v, text } of d.attrs) {
+    if (k === 'open') rows.push(group(null, choice('Открыть', v === true, () => set('open', true)), choice('Закрыть', v === false, () => set('open', false))));
+    else if ((k === 'humidity' || k === 'temperature') && typeof v === 'number') {
+      const step = k === 'humidity' ? 5 : 0.5;
+      const round = (x) => Math.round(x * 10) / 10;
+      rows.push(group(attrLabel(k),
+        h('button', { class: 'btn step', 'aria-label': `${attrLabel(k)}: меньше`, onclick: () => set(k, round(v - step)) }, '−'),
+        h('span', { class: 'value' }, text),
+        h('button', { class: 'btn step', 'aria-label': `${attrLabel(k)}: больше`, onclick: () => set(k, round(v + step)) }, '+'),
+        h('button', { class: 'btn', title: 'Записать сутки обычных показаний — для обычного уровня и графика', onclick: () => run('/api/sim/seed', { device: d.id, attr: k }, 'Записаны сутки истории') }, 'Сутки истории')));
+    } else if (['leak', 'motion', 'detected'].includes(k)) {
+      rows.push(group(attrLabel(k), choice('Да', v === true, () => set(k, true)), choice('Нет', v === false, () => set(k, false))));
+    }
+  }
+  if (!rows.length) return null;
+  return h('section', { class: 'card dp-card dp-sim' }, h('h3', { class: 'nt-h' }, 'Симулятор'),
+    h('p', { class: 'muted sys-hint' }, 'Меняет показания так, будто это сделал настоящий датчик.'),
+    h('div', { class: 'controls sim' }, rows));
+}
+
+export function createDevicePage(root, { onError, toast, simulator }) {
   let id = null;
   let chart = null; // { attr, range }
+  const run = async (path, body, ok) => {
+    try { await api(path, body); if (ok) toast?.(ok, 'notice'); await load(); } catch (e) { onError(e); }
+  };
 
   const meta = async (patch, ok) => {
     try { await api('/api/system/device', { cubeName: current.cubeName, ...patch }); toast?.(ok, 'notice'); await load(); } catch (e) { onError(e); }
@@ -69,7 +98,7 @@ export function createDevicePage(root, { onError, toast }) {
   function render(d) {
     const switches = d.attrs.filter((a) => a.control === 'switch');
     fill(root,
-      h('a', { class: 'dp-back', href: '#' }, '← Обзор'),
+      h('a', { class: 'dp-back', href: '#' }, '‹ Дом'),
       h('div', { class: 'dp-head' },
         h('h2', { class: 'ed-title' }, d.name),
         h('span', { class: d.online ? 'pill active' : 'pill paused' }, d.online ? 'на связи' : 'не в сети'),
@@ -81,6 +110,7 @@ export function createDevicePage(root, { onError, toast }) {
             h('span', { class: 'ctl' }, h('span', { class: 'ctl-label' }, attrLabel(a.key)),
               h('button', { class: `btn${a.value === 'on' ? ' on' : ''}`, onclick: () => void control(a.key, 'on') }, 'Вкл'),
               h('button', { class: `btn${a.value === 'off' ? ' on' : ''}`, onclick: () => void control(a.key, 'off') }, 'Выкл')))) : null),
+        simulator?.() ? simCard(d, run) : null,
         h('section', { class: 'card dp-card' }, h('h3', { class: 'nt-h' }, 'Здоровье'), h('ul', { class: 'dp-list' }, healthLines(d))),
         nameCard(d),
         h('section', { class: 'card dp-card' }, h('h3', { class: 'nt-h' }, 'Где используется'),

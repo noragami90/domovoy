@@ -47,11 +47,11 @@ devices:
     name: Прихожая выключатель
     display_category: switch
     manufacturer: SONOFF
-    model: ZBM5-1C-86W
+    model: ZBM5-2C-86W
     online: true
-    capabilities: [{ capability: toggle, name: "1" }]
+    capabilities: [{ capability: toggle, name: "1" }, { capability: toggle, name: "2" }]
     state:
-      toggle: { "1": { toggleState: "off" } }
+      toggle: { "1": { toggleState: "off" }, "2": { toggleState: "off" } }
 
   - serial_number: sim-garland
     name: Гирлянда лоджии
