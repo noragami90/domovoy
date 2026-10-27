@@ -12,6 +12,7 @@ services:
   sim:
     build: { context: ., target: sim }
     ports: ["8765:8765"]
+    restart: unless-stopped   # иначе после перезапуска Docker движок остаётся без «CUBE»
 
   domovoy:
     build: { context: ., target: app }

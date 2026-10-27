@@ -275,32 +275,56 @@ select { font: inherit; font-size: 0.86rem; padding: 4px 8px; border: 1px solid 
   .nt-layout { grid-template-columns: 1fr; }
 }
 
-/* system tab */
-.sys-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; align-items: start; }
-.sys-card { display: grid; gap: 10px; }
-.sys-wide { grid-column: 1 / -1; }
-.sys-status { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 650; }
-.sys-status.ok .dg-dot { background: var(--ok); }
-.sys-status.bad .dg-dot { background: var(--wait); }
-.sys-line, .sys-hint { margin: 0; font-size: 0.84rem; }
-.sys-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.sys-label { font-size: 0.82rem; font-weight: 650; color: var(--muted); min-width: 56px; }
-.sys-input { flex: 1; min-width: 180px; font: inherit; font-size: 0.92rem; padding: 6px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
-.sys-input:disabled { opacity: 0.7; }
-.sys-wait { margin: 0; background: var(--wait-bg); border-radius: 8px; padding: 8px 10px; font-size: 0.88rem; }
-.sys-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.sys-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.92rem; }
-.sys-list select, .sys-card select { font: inherit; font-size: 0.86rem; padding: 4px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink); }
-.sys-list code { font-size: 0.82rem; background: var(--bg); border-radius: 4px; padding: 1px 6px; }
-.sys-steps { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 0.92rem; }
-.sys-log { margin: 0; max-height: 340px; overflow: auto; background: var(--bg); border-radius: 8px; padding: 10px 12px; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
-.sys-restored { background: var(--ok-bg); border-radius: 8px; padding: 8px 10px; }
-.sys-dev { display: grid; gap: 2px; flex: 1; min-width: 180px; }
-.sys-cube { font-size: 0.76rem; }
-.sys-room { max-width: 220px; }
-.sys-devices li { align-items: flex-start; }
+/* system tab: one column of sections, like a settings screen */
+.sys-page { max-width: 860px; margin: 0 auto; display: grid; gap: 14px; }
+.sys-page-title { margin: 0; }
+.sys-nav { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-bottom: 4px; }
+.sys-nav::-webkit-scrollbar { display: none; }
+.sys-nav .chip-btn { flex: none; }
+.sys-card { display: grid; gap: 12px; scroll-margin-top: 76px; }
+.sys-head { display: flex; align-items: center; gap: 12px; }
+.sys-ic { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--card-2); color: var(--accent-2); }
+.sys-ic .ic { width: 22px; height: 22px; }
+.sys-title { margin: 0; flex: 1; min-width: 0; font-size: 1.05rem; font-weight: 600; }
+.sys-pill { flex: none; font-size: 0.8rem; font-weight: 600; padding: 4px 11px; border-radius: 999px; background: var(--card-2); color: var(--muted); white-space: nowrap; }
+.sys-pill.ok { background: var(--ok-bg); color: var(--ok); }
+.sys-pill.bad { background: rgba(255,92,80,0.15); color: var(--danger); }
+.sys-sub { margin: 6px 0 -4px; font-size: 0.86rem; font-weight: 600; color: var(--muted); }
+.sys-line, .sys-hint { margin: 0; font-size: 0.86rem; line-height: 1.5; }
+.sys-field { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 40px; }
+.sys-label { font-size: 0.88rem; font-weight: 600; color: var(--muted); }
+.sys-value { font-size: 0.92rem; }
+.sys-input { width: 100%; min-width: 0; font: inherit; font-size: 0.92rem; padding: 9px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-2); color: var(--ink); }
+.sys-input:disabled { opacity: 0.65; }
+.sys-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.sys-list > li { padding: 8px 0; border-top: 1px solid var(--line); font-size: 0.92rem; }
+.sys-list > li:first-child { border-top: none; padding-top: 2px; }
+.sys-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 10px; }
+.sys-grow { flex: 1; min-width: 160px; }
+.sys-list code { font-size: 0.82rem; background: var(--bg-2); border-radius: 6px; padding: 2px 7px; }
+.sys-room { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 8px; }
+.sys-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.sys-dev { display: grid; grid-template-columns: minmax(0, 1fr) minmax(130px, 200px); align-items: start; gap: 10px; }
+.sys-dev-name { display: grid; gap: 3px; min-width: 0; }
+.sys-cube { font-size: 0.76rem; padding-left: 2px; }
+.sys-dev select, .sys-item select, .sys-card select { font: inherit; font-size: 0.88rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--card-2); color: var(--ink); min-width: 0; }
+.sys-check { display: flex; align-items: center; gap: 10px; font-weight: 500; cursor: pointer; }
+.sys-check input { width: 18px; height: 18px; accent-color: var(--accent); }
+.sys-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.sys-file { min-width: 0; font-size: 0.86rem; color: var(--muted); }
+.sys-wait { margin: 0; background: var(--wait-bg); border-radius: 12px; padding: 10px 12px; font-size: 0.88rem; }
+.sys-steps { margin: 0; padding-left: 22px; display: grid; gap: 6px; font-size: 0.92rem; }
+.sys-log { margin: 0; max-height: 340px; overflow: auto; background: var(--bg-2); border-radius: 12px; padding: 10px 12px; font: 12px/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.sys-restored { background: var(--ok-bg); border-radius: 12px; padding: 10px 12px; }
 .sys-restored p { margin: 0 0 6px; }
+.sys-room .btn.icon { display: inline-grid; place-items: center; width: 38px; height: 38px; padding: 0; color: var(--ink); }
+.sys-room .btn.icon .ic { width: 18px; height: 18px; }
 a.btn { text-decoration: none; display: inline-block; }
+@media (max-width: 520px) {
+  .sys-field { grid-template-columns: 1fr auto; }
+  .sys-field > .sys-label { grid-column: 1 / -1; margin-bottom: -6px; }
+  .sys-dev { grid-template-columns: 1fr; gap: 6px; }
+}
 
 /* rule diagram */
 .ed-diagram { display: grid; gap: 12px; }

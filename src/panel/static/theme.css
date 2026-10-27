@@ -177,6 +177,14 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .f-row, .dg-act, .sys-log, .ai-code { background: var(--bg-2); }
 .acks { padding-top: 18px; }
 .ack-item { border-radius: var(--radius); background: linear-gradient(155deg, rgba(255,92,80,0.22), var(--card) 70%); border: 1px solid var(--danger); padding: 12px 16px; }
+.segmented { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--card-2); }
+.seg { border: none; background: none; color: var(--muted); padding: 6px 12px; border-radius: 9px; font-weight: 600; font-size: 0.86rem; }
+.seg:hover { color: var(--ink); }
+.seg.on { background: var(--accent); color: #fff; }
+/* уведомления, устройство и система — одна колонка одной ширины, как экран настроек */
+#view-notifications, #view-device, #view-system { max-width: 860px; }
+.nt-layout, .dp-grid { grid-template-columns: minmax(0, 1fr); }
+.nt-h { font-size: 1.05rem; font-weight: 600; }
 .dp-back { color: var(--accent-2); }
 .controls .btn { white-space: nowrap; }
 .dp-head .ed-title { font-size: 1.5rem; font-weight: 600; }
