@@ -48,37 +48,21 @@
 <main id="app" hidden>
   <div id="view-overview" class="overview">
     <div id="acks" class="acks" hidden></div>
-    <section class="hero">
-      <div class="hero-sun" aria-hidden="true"></div>
-      <div id="hero-climate" class="hero-climate"></div>
-      <div id="hero-time" class="hero-time"></div>
-      <div id="hero-date" class="hero-date"></div>
-      <div id="home" class="status" aria-label="Как дела дома"></div>
-    </section>
-    <div id="remote" class="remote"></div>
-    <section class="dev-section">
-      <h2>Устройства <span id="device-count" class="muted"></span></h2>
-      <div id="room-tabs" class="room-tabs" aria-label="Комнаты" hidden></div>
-      <p id="sim-hint" class="hint" hidden>Кнопки «Симулятор» — на странице датчика: нажми на его плитку.</p>
-      <div id="devices" class="devices"></div>
-    </section>
-    <div class="layout">
-      <section class="col">
-        <h2>Правила</h2>
-        <div id="rules" class="stack"></div>
-      </section>
-      <section class="col">
-        <h2>Переменные</h2>
-        <div id="vars" class="stack"></div>
-      </section>
+    <div id="pager" class="pager" aria-label="Экраны"></div>
+    <div class="pager-bar">
+      <button id="pg-prev" class="pg-arrow" aria-label="Предыдущий экран"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <div id="pg-dots" class="pg-dots"></div>
+      <button id="pg-next" class="pg-arrow" aria-label="Следующий экран"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+      <button id="pg-edit" class="pg-edit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></svg><span>Настроить</span></button>
+      <a href="#" class="pg-exit" aria-label="Обычная панель" title="Обычная панель"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5M10 16l4-4-4-4M14 12H4"/></svg></a>
     </div>
+    <dialog id="screens-sheet" class="sheet" aria-label="Настройка экранов"></dialog>
   </div>
   <div id="view-timeline" class="timeline" hidden></div>
   <div id="view-editor" class="editor-view" hidden></div>
   <div id="view-notifications" class="page-view" hidden></div>
   <div id="view-device" class="page-view" hidden></div>
   <div id="view-system" class="page-view" hidden></div>
-  <div id="view-tablet" class="tablet-view" hidden></div>
 </main>
 <p id="error" class="error" role="alert" hidden></p>
 </body>

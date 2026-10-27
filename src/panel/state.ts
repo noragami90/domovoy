@@ -1,5 +1,6 @@
 // What the web panel shows, as plain JSON: the house at a glance, rules, devices, variables,
 // and chart data for one device attribute.
+import { loadScreens, type Screen } from './screens.ts';
 import type { Link } from '../app.ts';
 import type { Device, Value } from '../cube/normalize.ts';
 import type { ItemStatus } from '../engine/conditions.ts';
@@ -17,6 +18,8 @@ export interface PanelState {
   link: Link;
   simulator: boolean;
   rooms: string[];   // in the order set in the panel; devices without a room come last
+  screens: Screen[]; // home screens and their panels (see screens.ts); screensCustom — saved by the user
+  screensCustom: boolean;
   home: {
     open: { device: string; since: number | null }[];
     leaks: string[];
@@ -97,10 +100,13 @@ export function panelState(engine: Engine, store: Store, link: Link, simulator: 
     };
   }).map((r) => ({ ...r, nextTimeAt: Number.isFinite(r.nextTimeAt) ? r.nextTimeAt : null }));
   const devices = engine.deviceList().sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+  const screens = loadScreens(store, x.rooms ?? []);
   return {
     link,
     simulator,
     rooms: x.rooms ?? [],
+    screens: screens.screens,
+    screensCustom: screens.custom,
     home: home(engine, devices, rules, x),
     rules,
     devices: devices.map((d) => ({

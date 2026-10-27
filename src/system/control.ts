@@ -5,6 +5,7 @@ import type { Config } from '../config.ts';
 import type { CubeLink, LinkInfo } from '../cube/link.ts';
 import type { Engine } from '../engine/engine.ts';
 import type { Library } from '../rules/library.ts';
+import { followRoom } from '../panel/screens.ts';
 import type { Store } from '../store/db.ts';
 import type { PendingChat, TelegramBot } from '../telegram/bot.ts';
 import { makeBackup, readBackup, restoreBackup, stamp, type AutoBackup, type BackupPaths, type RestoreResult } from './backup.ts';
@@ -164,6 +165,8 @@ export class SystemControl {
     config.rooms = rooms;
     for (const [key, room] of changed) { if (room) config.devices[key]!.room = room; else delete config.devices[key]!.room; }
     this.d.engine.setDeviceSettings(config.devices);
+    if (op.rename && op.rename[0] !== op.rename[1].trim()) followRoom(this.d.store, op.rename[0], op.rename[1].trim());
+    if (op.remove) followRoom(this.d.store, op.remove, null);
     this.event(`комнаты: ${rooms.join(', ') || 'нет'}`);
   }
 

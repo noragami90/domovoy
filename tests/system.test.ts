@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { loadScreens, saveScreens } from '../src/panel/screens.ts';
 import { test } from 'node:test';
 import { SIM_TOKEN, startSimulator } from '../sim/server.ts';
 import { loadConfig } from '../src/config.ts';
@@ -206,6 +207,7 @@ test('own names and rooms: shown everywhere, rules and protection keep working t
     await s.h.engine.control('Гирлянда лоджии', 'power', 'on', 'Тест');
     assert.match(s.store.events({ kind: 'manual' })[0]!.text, /Гирлянда лоджии/);
 
+    saveScreens(s.store, [{ name: 'Дом', panels: ['clock', 'room:Санузел', 'room:Лоджия'] }]);
     s.sys.editRooms({ add: 'Прихожая' });
     s.sys.editRooms({ rename: ['Санузел', 'Ванная'] });
     assert.equal(s.h.engine.deviceList().find((d) => d.cubeName === 'Вытяжка')!.room, 'Ванная', 'devices follow a renamed room');
@@ -213,6 +215,7 @@ test('own names and rooms: shown everywhere, rules and protection keep working t
     assert.deepEqual(s.config.rooms, ['Ванная', 'Прихожая', 'Лоджия']);
     s.sys.editRooms({ remove: 'Лоджия' });
     assert.equal(s.h.engine.deviceList().find((d) => d.cubeName === 'Дверь лоджии')!.room, null);
+    assert.deepEqual(loadScreens(s.store, []).screens[0]!.panels, ['clock', 'room:Ванная'], 'home screens follow the rooms');
     assert.throws(() => s.sys.editRooms({ rename: ['Ванная', 'Прихожая'] }), /уже есть/);
 
     s.sys.setDeviceMeta('Вытяжка', { label: null });

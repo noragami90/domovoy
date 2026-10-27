@@ -35,9 +35,55 @@ body[data-view="overview"] .top-clock { visibility: hidden; } /* на главн
 .tab[aria-current="page"] svg { stroke-width: 2.1; }
 .tab-count { position: absolute; top: 3px; right: 22px; margin: 0; }
 
-/* ── главный экран: солнце, часы, как дела ─────────────────────────────── */
-.overview { max-width: 1240px; margin: 0 auto; padding: 0 24px 24px; }
-.overview .acks, .overview .layout { max-width: none; padding-left: 0; padding-right: 0; }
+/* ── главный: экраны листаются вбок, как страницы NSPanel; на экране — панели ── */
+body[data-view="overview"], body.tablet-mode { padding-bottom: 0; overflow: hidden; }
+.pager { position: fixed; left: 0; right: 0; top: var(--top-h, 58px); bottom: calc(var(--bottom-h, 90px) + 46px); display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+.pager::-webkit-scrollbar { display: none; }
+.screen { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; }
+.screen-inner { max-width: 1240px; margin: 0 auto; padding: 8px 24px 28px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 24px 32px; }
+.screen-title { flex: 1 1 100%; margin: 18px 0 -8px; font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; }
+.panel { flex: 1 1 100%; min-width: 0; display: grid; gap: 10px; align-content: start; }
+.panel-quick { flex: 0 1 auto; }
+.panel-rules { flex: 1.5 1 520px; }
+.panel-vars { flex: 1 1 300px; }
+.panel-small { flex: 1 1 340px; } /* комната с одним-двумя устройствами — рядом с соседней */
+.panel-title { margin: 0; font-size: 0.95rem; font-weight: 600; color: var(--muted); }
+.panel-spare .panel-title { color: var(--wait); }
+.panel .empty { margin: 0; padding: 4px 0; }
+.screen-empty { flex: 1 1 100%; display: grid; justify-items: start; gap: 10px; padding: 32px 0; color: var(--muted); }
+.screen-empty p { margin: 0; }
+.pager-bar { position: fixed; z-index: 3; left: 0; right: 0; bottom: var(--bottom-h, 90px); height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px; pointer-events: none; }
+.pager-bar > * { pointer-events: auto; }
+.pager-bar svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.pg-dots { display: flex; }
+.pg-dot { width: 26px; height: 30px; padding: 0; border: none; background: none; display: grid; place-items: center; cursor: pointer; }
+.pg-dot::before { content: ""; width: 8px; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.28); transition: width .2s, background .2s; }
+.pg-dot[aria-current="true"]::before { width: 22px; background: var(--ink); }
+.pg-arrow, .pg-edit, .pg-exit { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; min-width: 34px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: rgba(39,40,45,0.82); color: var(--muted); font: inherit; font-size: 0.82rem; font-weight: 600; text-decoration: none; cursor: pointer; }
+.pg-arrow { padding: 0; }
+.pg-arrow:hover, .pg-edit:hover, .pg-exit:hover { color: var(--ink); }
+.pg-arrow:disabled { opacity: 0.3; cursor: default; }
+.pg-edit { position: absolute; right: 24px; }
+.pg-exit { display: none; position: absolute; left: 24px; }
+body.tablet-mode .pg-exit { display: inline-flex; }
+.overview .acks { position: fixed; z-index: 4; top: calc(var(--top-h, 58px) + 8px); left: 50%; transform: translateX(-50%); width: min(860px, calc(100% - 32px)); margin: 0; padding: 0; }
+
+/* настройка экранов — лист поверх */
+.sheet { width: min(560px, calc(100% - 24px)); max-height: calc(100dvh - 48px); padding: 18px 20px 20px; border: 1px solid var(--line); border-radius: 22px; background: var(--card); color: var(--ink); box-shadow: var(--shadow-lift); }
+.sheet[open] { display: grid; gap: 12px; }
+.sheet::backdrop { background: rgba(10,10,12,0.6); backdrop-filter: blur(4px); }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sheet-title { margin: 0; font-size: 1.15rem; font-weight: 600; }
+.sheet-steps { display: flex; gap: 6px; }
+.sheet .btn.icon { display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0; color: var(--ink); }
+.sheet .btn.icon .ic { width: 18px; height: 18px; }
+.sheet-field { display: grid; gap: 6px; }
+.sheet-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 6px; }
+.sheet-label { font-weight: 500; overflow-wrap: anywhere; }
+.sheet select { font: inherit; font-size: 0.9rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--card-2); color: var(--ink); min-width: 0; }
+.sheet-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; }
+
+/* ── часы, солнце, как дела ─────────────────────────────────────────────── */
 .hero { position: relative; isolation: isolate; display: grid; justify-items: start; gap: 6px; padding: 34px 0 6px; }
 .hero-sun { position: absolute; z-index: -1; top: -150px; right: -60px; width: 430px; aspect-ratio: 1; border-radius: 50%; pointer-events: none;
   background: radial-gradient(circle at 32% 28%, var(--sun-1) 0%, var(--sun-2) 40%, var(--sun-3) 76%, #d6531d 100%);
@@ -64,9 +110,6 @@ body.night .hc .ic { color: #c9d1e3; }
 @keyframes alarm { 50% { box-shadow: 0 0 0 7px rgba(255,92,80,0.24); } }
 
 /* быстрые карточки: режим, сцены, кто дома — как карточки внизу экрана панели */
-.remote { display: flex; flex-wrap: wrap; gap: 20px 32px; padding: 26px 0 0; }
-.qa-block { display: grid; gap: 10px; min-width: 0; }
-.qa-title { margin: 0; font-size: 0.88rem; font-weight: 600; color: var(--muted); }
 .qa-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .qa { font: inherit; display: grid; justify-items: center; align-content: center; gap: 8px; min-width: 92px; min-height: 96px; padding: 12px 10px 11px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--card); color: var(--ink); font-size: 0.86rem; font-weight: 600; cursor: pointer; transition: background .2s, transform .12s, box-shadow .2s; -webkit-tap-highlight-color: transparent; }
 .qa-icon { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: var(--card-2); color: #b9bcc4; transition: background .2s, color .2s; }
@@ -81,15 +124,7 @@ body.night .hc .ic { color: #c9d1e3; }
 .qa-sub { margin-top: -6px; font-size: 0.74rem; font-weight: 500; color: var(--muted); }
 
 /* ── устройства: вкладки комнат и плитки ───────────────────────────────── */
-.room-tabs { display: flex; gap: 22px; overflow-x: auto; scrollbar-width: none; margin: -2px 0 14px; }
-.room-tabs::-webkit-scrollbar { display: none; }
-.rt { position: relative; flex: none; padding: 6px 0 9px; border: none; background: none; color: var(--muted); font-weight: 600; font-size: 0.95rem; }
-.rt:hover { color: var(--ink); }
-.rt[aria-pressed="true"] { color: var(--ink); }
-.rt[aria-pressed="true"]::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 18px; height: 3px; margin-left: -9px; border-radius: 2px; background: var(--accent); }
 .devices { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; }
-.room-head { grid-column: 1 / -1; margin: 14px 2px -2px; font-size: 0.95rem; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--muted); }
-.room-head:first-child { margin-top: 0; }
 .ns-tile { position: relative; isolation: isolate; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; min-width: 0; min-height: 150px; padding: 14px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); color: var(--ink); text-align: left; font: inherit; transition: background .2s, transform .12s, box-shadow .2s, filter .2s; user-select: none; -webkit-tap-highlight-color: transparent; }
 .ns-hit { position: absolute; inset: 0; z-index: 1; padding: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
 .ns-hit:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 2px; }
@@ -195,44 +230,20 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .login-clock { font-size: 4.2rem; font-weight: 500; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
 .login-card h1 { font-weight: 600; color: var(--muted); font-size: 1rem; margin: 0 0 12px; }
 
-/* ── настенный планшет (#tablet): главный экран панели, крупно ─────────── */
-body.tablet-mode { padding-bottom: 0; }
+/* ── настенный планшет (#tablet): те же экраны во весь экран, крупнее ───── */
 body.tablet-mode .top, body.tablet-mode .tabs { display: none; }
-.tablet-view { max-width: 1500px; margin: 0 auto; padding: 28px 28px 32px; display: grid; grid-template-columns: minmax(320px, 0.85fr) 1.6fr; gap: 28px 40px; align-items: start; }
-.tb-side { position: sticky; top: 28px; isolation: isolate; display: grid; justify-items: start; gap: 8px; }
-.tb-side .hero-sun { top: -150px; right: -30px; width: 320px; } /* в своей колонке, не под комнатами */
-.tb-clock { font-size: clamp(5.2rem, 9vw, 8.4rem); }
-.tb-exit { position: absolute; top: -8px; right: 0; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); background: rgba(39,40,45,0.6); }
-.tb-exit:hover { color: var(--ink); }
-.tb-side .qa-block { margin-top: 18px; }
-.tb-side .qa { min-width: 104px; min-height: 108px; font-size: 0.95rem; }
-.tb-alerts { display: grid; gap: 10px; width: 100%; margin-top: 16px; }
-.tb-alert { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-radius: var(--radius); font-size: 1.15rem; font-weight: 600; }
-.tb-alert.alert { background: linear-gradient(155deg, #ff7a6e, #e0372b); color: #fff; }
-.tb-alert.warn { background: rgba(255,179,64,0.16); border: 1px solid rgba(255,179,64,0.42); color: #ffd290; }
-.tb-ack { font: inherit; font-weight: 700; padding: 12px 24px; border-radius: 14px; border: none; background: #fff; color: #b3261c; cursor: pointer; }
-.tb-rooms { display: grid; gap: 22px; }
-.tb-room-name { margin: 0 0 12px; font-size: 1.05rem; color: var(--muted); }
-.tb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 14px; }
-.ns-tile.tb { min-height: 156px; padding: 16px; cursor: default; }
-button.ns-tile.tb { cursor: pointer; }
-button.ns-tile.tb:hover { background: #2e3036; }
-button.ns-tile.tb.on:hover { background: var(--on-grad); filter: brightness(1.07); }
-button.ns-tile.tb:active { transform: scale(0.97); }
-button.ns-tile.tb:disabled { cursor: default; }
-.ns-tile.tb .ns-icon { width: 50px; height: 50px; }
-.ns-tile.tb .ns-icon .ic { width: 26px; height: 26px; }
-.ns-tile.tb .ns-name { font-size: 1.08rem; }
-.ns-tile.tb .ns-big { font-size: 2.6rem; }
+body.tablet-mode .panel-clock { flex: 1 1 440px; }
+body.tablet-mode .hero-time { font-size: clamp(5.6rem, 11vw, 9rem); }
+body.tablet-mode .qa { min-width: 104px; min-height: 108px; font-size: 0.95rem; }
+body.tablet-mode .devices { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+body.tablet-mode .ns-tile { min-height: 160px; padding: 16px; }
+body.tablet-mode .ns-name { font-size: 1.08rem; }
 
 /* ── узкие экраны ────────────────────────────────────────────────────── */
-@media (max-width: 1100px) {
-  .tablet-view { grid-template-columns: 1fr; }
-  .tb-side { position: relative; top: 0; }
-  .tb-side .hero-sun { right: -90px; width: 360px; }
-}
 @media (max-width: 860px) {
-  .overview { padding: 0 16px 24px; }
+  .screen-inner { padding: 4px 16px 24px; gap: 22px; }
+  .pg-edit { right: 16px; }
+  .pg-exit { left: 16px; }
   .top { grid-template-columns: auto 1fr; padding: 10px 16px; padding-top: max(10px, env(safe-area-inset-top)); }
   .top-clock { display: none; }
   .hero { padding-top: 24px; }
@@ -240,6 +251,7 @@ button.ns-tile.tb:disabled { cursor: default; }
 }
 @media (max-width: 760px) {
   body { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+  body[data-view="overview"] { padding-bottom: 0; }
   .tabs { left: 0; right: 0; bottom: 0; transform: none; justify-content: space-around; padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); border-radius: 0; border-width: 1px 0 0; background: rgba(30,31,35,0.94); box-shadow: none; }
   .tab { flex: 1; min-width: 0; padding: 6px 2px 4px; font-size: 0.66rem; }
   .tab[aria-current="page"] { background: none; }
@@ -253,8 +265,9 @@ button.ns-tile.tb:disabled { cursor: default; }
   .badge { padding: 5px 10px; }
   .hero-time { font-size: 5.4rem; }
   .hero-sun { top: -96px; right: -120px; width: 260px; }
-  .remote { gap: 18px; }
-  .qa-block { width: 100%; }
+  .panel-quick { flex-basis: 100%; }
+  .pg-arrow { display: none; }
+  .pg-edit span { display: none; }
   .qa-row { display: grid; grid-auto-flow: column; grid-auto-columns: max(72px, calc((100% - 30px) / 4)); overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 2px 16px 4px; } /* четыре в ряд, остальные — прокруткой */
   .qa-row::-webkit-scrollbar { display: none; }
   .qa { min-width: 0; min-height: 88px; padding: 10px 6px; font-size: 0.8rem; }
@@ -262,8 +275,7 @@ button.ns-tile.tb:disabled { cursor: default; }
   .devices { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .ns-tile { min-height: 136px; padding: 13px; }
   .ns-big { font-size: 2rem; }
-  .tablet-view { padding: 18px 16px; }
-  .tb-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .ns-tile.tb { min-height: 128px; padding: 13px; }
+  body.tablet-mode .devices { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  body.tablet-mode .ns-tile { min-height: 136px; padding: 13px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

@@ -21,6 +21,7 @@
 //   GET  /api/notifications?filter=all|urgent|pending&before — journal + settings
 //   POST /api/notifications/:id/ack, /api/notifications/settings {...}, /api/notifications/test {"urgent": true}
 //   GET  /api/devices/:id           device page: values, health, rules and scenes using it, recent events
+//   POST /api/screens               {"screens": [{"name": "Дом", "panels": ["clock", "room:Кухня"]}]} or {"reset": true}
 //   POST /api/sim/state, /api/sim/seed — only when CUBE is the simulator
 // POSTs must be JSON from this same page (Origin), so another site cannot press buttons.
 import { createHash, timingSafeEqual } from 'node:crypto';
@@ -41,6 +42,7 @@ import type { ReplayResult } from '../engine/replay.ts';
 import { DraftError, type Drafter } from '../ai/draft.ts';
 import type { HouseContext } from '../ai/prompt.ts';
 import { buildDiagram } from './diagram.ts';
+import { resetScreens, saveScreens } from './screens.ts';
 import { HttpError, json, readJson, sameOrigin, SECURITY } from './http.ts';
 import { systemRoute } from './system-routes.ts';
 import type { SystemControl } from '../system/control.ts';
@@ -94,7 +96,7 @@ const STATIC: Record<string, [file: string, type: string]> = {
   '/notifications.js': ['notifications.js', 'text/javascript; charset=utf-8'],
   '/device.js': ['device.js', 'text/javascript; charset=utf-8'],
   '/system.js': ['system.js', 'text/javascript; charset=utf-8'],
-  '/tablet.js': ['tablet.js', 'text/javascript; charset=utf-8'],
+  '/screens.js': ['screens.js', 'text/javascript; charset=utf-8'],
   '/tiles.js': ['tiles.js', 'text/javascript; charset=utf-8'],
   '/icons.js': ['icons.js', 'text/javascript; charset=utf-8'],
   '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json'],
@@ -209,6 +211,13 @@ export function startPanel(o: PanelOptions): Promise<Panel> {
     if (path.startsWith('/api/library/') || path === '/api/templates/build') return postLibrary(path, body, res);
     if (path === '/api/ai/draft') return postDraft(body, res);
     if (path.startsWith('/api/notifications/')) return postNotifications(path, body, res);
+    if (path === '/api/screens') {
+      try {
+        if (body.reset === true) resetScreens(store); else saveScreens(store, body.screens);
+      } catch (err) { throw new HttpError(400, (err as Error).message); }
+      changed();
+      return json(res, 200, { ok: true });
+    }
     if ((m = /^\/api\/vars\/([^/]+)$/.exec(path))) {
       if (!isScalar(body.value)) throw new HttpError(400, 'value: строка, число или да/нет');
       const name = decodeURIComponent(m[1]!);

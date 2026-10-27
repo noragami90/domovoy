@@ -1,12 +1,13 @@
-// Web panel: login, the home screen (clock, how the house is, mode, scenes, devices by room), rules
-// (switch, pause, «Почему?»), variables and the other tabs. Refreshes on every "change" from /api/events.
+// Web panel: login, the home screens (swiped left and right like the NSPanel pages, made of panels: clock and
+// how the house is, mode, scenes, who is home, a room's devices, rules, variables) and the other tabs.
+// Refreshes on every "change" from /api/events.
 import { AuthError, ago, api, clock, h } from './dom.js';
 import { createEditor } from './editor.js';
 import { icon, modeIcon, sceneIcon } from './icons.js';
 import { createNotifications } from './notifications.js';
 import { createDevicePage } from './device.js';
+import { createScreens } from './screens.js';
 import { createSystem } from './system.js';
-import { createTablet } from './tablet.js';
 import { deviceTile } from './tiles.js';
 import { createTimeline } from './timeline.js';
 
@@ -68,7 +69,7 @@ const editor = createEditor($('view-editor'), { onError: fail, toast: (msg, tone
 const notifications = createNotifications($('view-notifications'), { onError: fail, toast: (msg, tone) => toast(msg, tone) });
 const devicePage = createDevicePage($('view-device'), { onError: fail, toast: (msg, tone) => toast(msg, tone), simulator: () => state?.simulator });
 const system = createSystem($('view-system'), { onError: fail, toast: (msg, tone) => toast(msg, tone) });
-const tablet = createTablet($('view-tablet'), { onError: fail, toast: (msg, tone) => toast(msg, tone) });
+// #tablet — the wall tablet: the same home screens without the status bar and the tab dock.
 const VIEWS = ['overview', 'timeline', 'editor', 'notifications', 'device', 'system', 'tablet'];
 // "#device/<id>" opens a device page; other hashes are tabs.
 const deviceId = () => (location.hash.startsWith('#device/') ? decodeURIComponent(location.hash.slice(8)) : null);
@@ -79,18 +80,18 @@ const deviceLink = (name) => {
 };
 function applyView() {
   const v = currentView();
-  for (const name of VIEWS) $(`view-${name}`).hidden = v !== name;
+  const shown = v === 'tablet' ? 'overview' : v;
+  for (const name of VIEWS) if (name !== 'tablet') $(`view-${name}`).hidden = shown !== name;
   for (const a of document.querySelectorAll('.tab')) a.setAttribute('aria-current', a.dataset.view === v ? 'page' : 'false');
   document.body.dataset.view = v; // the status bar shows the time everywhere but on the home screen, which has the big clock
-  if (v !== 'overview') window.scrollTo(0, 0);
+  if (shown !== 'overview') window.scrollTo(0, 0);
   if (v === 'timeline') void timeline.refresh();
   if (v === 'editor') void editor.show();
   if (v === 'notifications') void notifications.show();
   if (v === 'device') void devicePage.show(deviceId());
   if (v === 'system') void system.show();
-  // Tablet on the wall: no header, its own dark look.
   document.body.classList.toggle('tablet-mode', v === 'tablet');
-  if (v === 'tablet') { tablet.show(); if (state) tablet.render(state); } else tablet.hide();
+  if (shown === 'overview') requestAnimationFrame(() => screens.measure());
 }
 window.addEventListener('hashchange', applyView);
 
@@ -108,36 +109,33 @@ async function runScene(scene) {
 // Quick cards like the ones along the bottom of the wall panel: an icon in a circle and a word.
 const quick = (cls, ic, label, props, sub) => h('button', { class: `qa ${cls}`, ...props },
   h('span', { class: 'qa-icon' }, icon(ic)), h('span', { class: 'qa-label' }, label), sub ? h('span', { class: 'qa-sub' }, sub) : null);
-const block = (title, row) => h('div', { class: 'qa-block' }, h('h3', { class: 'qa-title' }, title), row);
+// Fill a panel's body if that panel is on a screen; a panel with nothing to show hides.
+function into(id, items) {
+  const box = $(id);
+  if (!box) return;
+  box.closest('.panel').hidden = !items.length;
+  box.replaceChildren(...items);
+}
 
 function renderRemote() {
   const mode = state.vars.find((v) => v.name === 'mode' && v.options);
-  const blocks = [];
-  if (mode) {
-    blocks.push(block(mode.label, h('div', { class: 'qa-row', role: 'radiogroup', 'aria-label': mode.label }, mode.options.map((o) => {
-      const on = o.value === mode.value;
-      return quick(on ? 'on' : '', modeIcon(o), o.label, { role: 'radio', 'aria-checked': String(on), onclick: act(() => api('/api/vars/mode', { value: o.value })) });
-    }))));
-  }
-  if (state.scenes.length) {
-    blocks.push(block('Сцены', h('div', { class: 'qa-row' }, state.scenes.map((x) => quick('scene', sceneIcon(x), x.name, {
-      title: x.description ?? '',
-      onclick: act(async (e) => {
-        const card = e.currentTarget;
-        card.classList.add('ran'); // a short blue flash: the scene was sent
-        setTimeout(() => card.classList.remove('ran'), 700);
-        await runScene(x);
-      }),
-    })))));
-  }
-  if (state.home.people.length) {
-    blocks.push(block('Кто дома', h('div', { class: 'qa-row' }, state.home.people.map((p) => quick(`person${p.home ? ' on' : ''}`, 'person', p.name, {
-      'aria-pressed': String(p.home), 'aria-label': `${p.name}: ${p.home ? 'дома' : 'нет дома'}`,
-      onclick: act(() => api(`/api/presence/${encodeURIComponent(p.id)}`, { home: !p.home })),
-    }, p.home ? 'дома' : 'нет дома')))));
-  }
-  $('remote').hidden = !blocks.length;
-  $('remote').replaceChildren(...blocks);
+  into('panel-mode', mode ? mode.options.map((o) => {
+    const on = o.value === mode.value;
+    return quick(on ? 'on' : '', modeIcon(o), o.label, { role: 'radio', 'aria-checked': String(on), onclick: act(() => api('/api/vars/mode', { value: o.value })) });
+  }) : []);
+  into('panel-scenes', state.scenes.map((x) => quick('scene', sceneIcon(x), x.name, {
+    title: x.description ?? '',
+    onclick: act(async (e) => {
+      const card = e.currentTarget;
+      card.classList.add('ran'); // a short blue flash: the scene was sent
+      setTimeout(() => card.classList.remove('ran'), 700);
+      await runScene(x);
+    }),
+  })));
+  into('panel-people', state.home.people.map((p) => quick(`person${p.home ? ' on' : ''}`, 'person', p.name, {
+    'aria-pressed': String(p.home), 'aria-label': `${p.name}: ${p.home ? 'дома' : 'нет дома'}`,
+    onclick: act(() => api(`/api/presence/${encodeURIComponent(p.id)}`, { home: !p.home })),
+  }, p.home ? 'дома' : 'нет дома')));
 }
 
 // ── the house at a glance ──────────────────────────────────────────────────
@@ -167,6 +165,7 @@ function renderHome() {
     ruleText ? chip('', 'rules', `Правила: ${ruleText}`) : null,
     m.power ? chip('', 'bolt', m.power) : null,
   ];
+  if (!$('home')) return; // the clock panel is on no screen
   $('home').replaceChildren(...chips.filter(Boolean)); // replaceChildren would print a null as text
   $('hero-climate').replaceChildren(...m.climate.map((c, i) => h('span', { class: 'hc' }, i ? null : icon('temp'),
     h('span', { class: 'hc-val' }, [short(c.temperature), c.humidity].filter(Boolean).join(' ')), h('span', { class: 'hc-where' }, c.device))));
@@ -234,6 +233,7 @@ function pauseControl(r, c) {
 
 function renderRules() {
   const box = $('rules');
+  if (!box) return; // the rules panel is on no screen
   if (!state.rules.length) return box.replaceChildren(h('p', { class: 'empty' }, 'Правил нет — положи карточки в папку rules.'));
   box.querySelector('.empty')?.remove();
   const seen = new Set();
@@ -265,7 +265,8 @@ function renderRules() {
 
 function renderVars() {
   const box = $('vars');
-  // The mode and presence live on the remote above.
+  if (!box) return;
+  // The mode and presence have panels of their own.
   const vars = state.vars.filter((v) => !(v.name === 'mode' && v.options) && !PRESENCE.test(v.name));
   if (!vars.length) return box.replaceChildren(h('p', { class: 'empty' }, 'Переменных нет.'));
   box.replaceChildren(...vars.map((v) => h('div', { class: 'card var-row' },
@@ -275,37 +276,68 @@ function renderVars() {
       : h('span', { class: 'value' }, v.text))));
 }
 
-// ── devices ────────────────────────────────────────────────────────────────
+// ── devices: a panel per room ──────────────────────────────────────────────
 
 const control = (d, attr, value) => api(`/api/devices/${encodeURIComponent(d.id)}/set`, { attr, value });
-const NO_ROOM = '\u0000none';
-
-// Rooms as tabs over the tiles, like in eWeLink: «Все» shows every room under its heading. The choice is
-// remembered in this browser.
-let roomFilter = (() => { try { return localStorage.getItem('domovoy.room') ?? ''; } catch { return ''; } })();
-function pickRoom(room) {
-  roomFilter = room;
-  try { localStorage.setItem('domovoy.room', room); } catch { /* private mode: just not remembered */ }
-  lastJson.devices = null;
-  renderDevices();
-}
+const SPARE = '*';  // devices of rooms that are on no screen
 
 function renderDevices() {
-  const box = $('devices');
-  $('device-count').textContent = state.devices.length ? String(state.devices.length) : '';
-  if (!state.devices.length) { $('room-tabs').hidden = true; return box.replaceChildren(h('p', { class: 'empty' }, 'CUBE не вернула ни одного устройства.')); }
-  // By room, in the order set in «Система»; without a room — last.
-  const loose = state.devices.filter((d) => !d.room || !state.rooms.includes(d.room));
-  const groups = [...state.rooms.map((r) => [r, r, state.devices.filter((d) => d.room === r)]),
-    [NO_ROOM, state.rooms.length ? 'Без комнаты' : null, loose]].filter(([, , list]) => list.length);
-  if (roomFilter && !groups.some(([key]) => key === roomFilter)) roomFilter = '';
-  const tabs = [['', 'Все'], ...groups.filter(([, label]) => label).map(([key, label]) => [key, label])];
-  $('room-tabs').hidden = tabs.length < 3; // one room: nothing to choose
-  $('room-tabs').replaceChildren(...tabs.map(([key, label]) => h('button', { class: 'rt', 'aria-pressed': String(key === roomFilter), onclick: () => pickRoom(key) }, label)));
-  const shown = roomFilter ? groups.filter(([key]) => key === roomFilter) : groups;
+  const known = new Set(state.rooms);
+  const roomOf = (d) => (d.room && known.has(d.room) ? d.room : '');
+  const placed = new Set([...document.querySelectorAll('.devices[data-room]')].map((b) => b.dataset.room));
   const tile = (d) => deviceTile(d, { control, act });
-  box.replaceChildren(...shown.flatMap(([, label, list]) => [label && !roomFilter ? h('h3', { class: 'room-head' }, label) : null, ...list.map(tile)]).filter(Boolean));
+  for (const box of document.querySelectorAll('.devices[data-room]')) {
+    const room = box.dataset.room;
+    const list = state.devices.filter((d) => (room === SPARE ? !placed.has(roomOf(d)) : roomOf(d) === room));
+    const panel = box.closest('.panel');
+    panel.classList.toggle('panel-small', list.length > 0 && list.length <= 2 && !list.some((d) => d.attrs.filter((a) => a.control === 'switch').length > 1));
+    if (room === SPARE) panel.hidden = !list.length;
+    else if (room && !known.has(room)) { panel.hidden = false; box.replaceChildren(h('p', { class: 'empty' }, `Комнаты «${room}» больше нет — убери панель в «Настроить».`)); continue; }
+    else panel.hidden = !list.length && room === '';
+    box.replaceChildren(...(list.length ? list.map(tile) : [h('p', { class: 'empty' }, 'Здесь пока нет устройств — комнату устройству назначают в «Системе».')]));
+  }
 }
+
+// ── screens: which panels exist and how each is built ───────────────────────
+
+function catalogue() {
+  const mode = state?.vars.find((v) => v.name === 'mode' && v.options);
+  return [
+    ['clock', 'Часы и как дела дома'],
+    mode ? ['mode', mode.label] : null,
+    state?.scenes.length ? ['scenes', 'Сцены'] : null,
+    state?.home.people.length ? ['people', 'Кто дома'] : null,
+    ...(state?.rooms ?? []).map((r) => [`room:${r}`, r]),
+    ['room:', 'Устройства без комнаты'],
+    ['rules', 'Правила'],
+    ['vars', 'Переменные'],
+  ].filter(Boolean).map(([id, label]) => ({ id, label }));
+}
+
+function makePanel(p) {
+  if (p === 'clock') {
+    return { cls: 'panel-clock', body: h('div', { class: 'hero' },
+      h('div', { class: 'hero-sun', 'aria-hidden': 'true' }),
+      h('div', { id: 'hero-climate', class: 'hero-climate' }),
+      h('div', { id: 'hero-time', class: 'hero-time' }),
+      h('div', { id: 'hero-date', class: 'hero-date' }),
+      h('div', { id: 'home', class: 'status', 'aria-label': 'Как дела дома' })) };
+  }
+  if (p === 'mode') return { cls: 'panel-quick', title: state?.vars.find((v) => v.name === 'mode')?.label ?? 'Режим', body: h('div', { id: 'panel-mode', class: 'qa-row', role: 'radiogroup', 'aria-label': 'Режим' }) };
+  if (p === 'scenes') return { cls: 'panel-quick', title: 'Сцены', body: h('div', { id: 'panel-scenes', class: 'qa-row' }) };
+  if (p === 'people') return { cls: 'panel-quick', title: 'Кто дома', body: h('div', { id: 'panel-people', class: 'qa-row' }) };
+  if (p === 'rules') return { cls: 'panel-rules', title: 'Правила', body: h('div', { id: 'rules', class: 'stack' }) };
+  if (p === 'vars') return { cls: 'panel-vars', title: 'Переменные', body: h('div', { id: 'vars', class: 'stack' }) };
+  if (p === 'unplaced') return { cls: 'panel-spare', title: 'Ещё не на экранах', body: h('div', { class: 'devices', 'data-room': SPARE }) };
+  const room = p.slice(5);
+  return { title: room || 'Без комнаты', body: h('div', { class: 'devices', 'data-room': room }) };
+}
+
+const screens = createScreens({
+  pager: $('pager'), dots: $('pg-dots'), prev: $('pg-prev'), next: $('pg-next'), edit: $('pg-edit'), dialog: $('screens-sheet'),
+  catalogue, makePanel, onError: fail, toast: (msg, tone) => toast(msg, tone),
+  onBuild: () => { for (const k of ['remote', 'vars', 'devices']) delete lastJson[k]; tickClock(); },
+});
 
 // Clock on the top bar and the home screen, like on the wall panel.
 function tickClock() {
@@ -344,9 +376,9 @@ async function refresh() {
     $('link').className = `badge link ${state.link.connected ? 'on' : 'off'}`;
     $('link-text').textContent = state.link.connected ? 'CUBE на связи' : 'CUBE: нет связи';
     $('sim-badge').hidden = !state.simulator;
-    $('sim-hint').hidden = !state.simulator;
+    screens.build(state.screens);
+    screens.sync();
     if (changedPart('remote', [state.scenes, state.vars.find((v) => v.name === 'mode'), state.home.people])) renderRemote();
-    if (currentView() === 'tablet') tablet.render(state);
     if (changedPart('acks', state.home.pendingAcks)) renderAcks();
     renderHome();
     renderRules();

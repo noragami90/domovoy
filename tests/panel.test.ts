@@ -80,7 +80,7 @@ test('page: strict CSP, no inline code, all modules served', async () => {
     assert.deepEqual([fonts.status, fonts.headers.get('content-type')], [200, 'font/woff2']);
     assert.match(fonts.headers.get('cache-control') ?? '', /max-age/);
     assert.match(await (await call('/fonts.css')).text(), /url\(\/fonts\/inter-tight-latin\.woff2\)/);
-    for (const f of ['/panel.js', '/dom.js', '/chart.js', '/timeline.js', '/editor.js', '/form.js', '/diagram.js', '/whatif.js', '/ai.js', '/notifications.js', '/device.js', '/system.js', '/tablet.js', '/tiles.js', '/icons.js', '/manifest.webmanifest', '/icon-192.png', '/apple-touch-icon.png', '/panel.css', '/theme.css', '/fonts/OFL-inter-tight.txt', '/favicon.svg']) assert.equal((await call(f)).status, 200, f);
+    for (const f of ['/panel.js', '/dom.js', '/chart.js', '/timeline.js', '/editor.js', '/form.js', '/diagram.js', '/whatif.js', '/ai.js', '/notifications.js', '/device.js', '/system.js', '/screens.js', '/tiles.js', '/icons.js', '/manifest.webmanifest', '/icon-192.png', '/apple-touch-icon.png', '/panel.css', '/theme.css', '/fonts/OFL-inter-tight.txt', '/favicon.svg']) assert.equal((await call(f)).status, 200, f);
     assert.equal((await call('/nope')).status, 404);
   } finally { await panel.close(); }
 });
@@ -395,4 +395,24 @@ test('batch Д API: journal, «Принял» from the panel, settings, device p
     assert.equal(bath.health.usualGapMs, null, 'no regular reports yet');
     assert.equal((await fetch(`${panel.url}/api/devices/nope`, { headers: { cookie } })).status, 404);
   } finally { await panel.close(); notifications.stop(); }
+});
+
+test('home screens: saved from the panel, checked, back to the default on reset', async () => {
+  const { panel, call, login } = await setup();
+  const state = async () => (await (await call('/api/state')).json()) as PanelState;
+  try {
+    await login();
+    let s = await state();
+    assert.equal(s.screensCustom, false);
+    assert.deepEqual(s.screens.map((x) => x.name), ['Дом', 'Устройства', 'Автоматика']);
+    const mine = [{ name: 'Свет', panels: ['mode', 'room:'] }, { name: 'Пусто', panels: [] }];
+    assert.equal((await call('/api/screens', { screens: mine })).status, 200);
+    s = await state();
+    assert.deepEqual([s.screens, s.screensCustom], [mine, true]);
+    const bad = await call('/api/screens', { screens: [{ name: 'А', panels: ['mode'] }, { name: 'Б', panels: ['mode'] }] });
+    assert.equal(bad.status, 400);
+    assert.match(((await bad.json()) as { error: string }).error, /уже есть на другом экране/);
+    assert.equal((await call('/api/screens', { reset: true })).status, 200);
+    assert.equal((await state()).screensCustom, false);
+  } finally { await panel.close(); }
 });
